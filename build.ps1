@@ -6,6 +6,8 @@ $classes = Join-Path $build "classes"
 $input = Join-Path $build "input"
 $dist = Join-Path $root "dist"
 $jar = Join-Path $input "VoxelPort.jar"
+$appImageDir = Join-Path $dist "VoxelPort"
+$zipPath = Join-Path $dist "VoxelPort-1.0.0-windows-x64.zip"
 
 Remove-Item -LiteralPath $build,$dist -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $classes | Out-Null
@@ -20,6 +22,9 @@ jar --create --file $jar --main-class org.localm.LocalMJava -C $classes .
 $runtimeImage = Join-Path $build "runtime"
 jlink --add-modules java.desktop,java.net.http,java.logging,jdk.crypto.ec,jdk.zipfs --output $runtimeImage --strip-debug --no-header-files --no-man-pages
 
+# Bundle required tools into the jpackage input so installer includes them.
+Copy-Item -LiteralPath (Join-Path $root "bin") -Destination $input -Recurse -Force
+
 jpackage `
   --type app-image `
   --name "VoxelPort" `
@@ -28,9 +33,15 @@ jpackage `
   --main-class "org.localm.LocalMJava" `
   --runtime-image $runtimeImage `
   --dest $dist `
-  --app-version "0.1.0"
+  --app-version "1.0.0" `
+  --vendor "VoxelPort"
 
-Copy-Item -LiteralPath (Join-Path $root "bin") -Destination (Join-Path $dist "VoxelPort\bin") -Recurse -Force
+if (Test-Path $zipPath) {
+  Remove-Item -LiteralPath $zipPath -Force
+}
+Compress-Archive -Path (Join-Path $appImageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
 
 Write-Host "Built app image:"
-Write-Host (Join-Path $dist "VoxelPort\VoxelPort.exe")
+Write-Host (Join-Path $appImageDir "VoxelPort.exe")
+Write-Host "Built release zip:"
+Write-Host $zipPath

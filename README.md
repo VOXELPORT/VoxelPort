@@ -1,6 +1,6 @@
 # VoxelPort
 
-Standalone Java Minecraft server manager.
+Standalone Java Minecraft server manager (Windows-only for v1.0.0).
 
 ## Current Features
 
@@ -33,3 +33,7 @@ dist\VoxelPort\VoxelPort.exe
 ```
 
 This first version is dependency-free Swing so it can build without Gradle or Maven.
+
+## Platform Support
+
+This first release is supported on Windows only.

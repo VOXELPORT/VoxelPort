@@ -54,6 +54,11 @@ public class LocalMJava extends JFrame {
     private final Map<String, DefaultStyledDocument> consoleDocs = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
+        if (args.length > 0) {
+            runCliMain(args);
+            return;
+        }
+
         LocalMJava app;
         try {
             app = new LocalMJava();
@@ -62,14 +67,19 @@ public class LocalMJava extends JFrame {
             return;
         }
 
-        if (args.length > 0) {
-            app.runCli(args);
-            return;
-        }
-
         SwingUtilities.invokeLater(() -> {
             app.setVisible(true);
         });
+    }
+
+    private static void runCliMain(String[] args) {
+        try {
+            ServerStore cliStore = new ServerStore();
+            ServerProcessManager cliProcessManager = new ServerProcessManager(cliStore.getDataDir());
+            new CliRunner(cliStore, cliProcessManager).run(args);
+        } catch (IOException e) {
+            System.err.println("Failed to initialize store: " + e.getMessage());
+        }
     }
 
     private void runCli(String[] args) {
@@ -102,6 +112,80 @@ public class LocalMJava extends JFrame {
             }
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
+        }
+    }
+
+    private static final class CliRunner {
+        private final ServerStore store;
+        private final ServerProcessManager processManager;
+
+        private CliRunner(ServerStore store, ServerProcessManager processManager) {
+            this.store = store;
+            this.processManager = processManager;
+        }
+
+        private void run(String[] args) {
+            String cmd = args[0].toLowerCase(Locale.ROOT);
+            try {
+                switch (cmd) {
+                    case "--list" -> {
+                        System.out.println("Installed Servers:");
+                        store.stringPropertyNames().stream()
+                                .filter(k -> k.endsWith(".dir"))
+                                .map(k -> k.substring(0, k.length() - 4))
+                                .sorted()
+                                .forEach(name -> {
+                                    String port = store.getProperty(name + ".port", "25565");
+                                    String version = store.getProperty(name + ".version", "unknown");
+                                    System.out.printf("- %s (%s, Port: %s)\n", name, version, port);
+                                });
+                    }
+                    case "--start" -> {
+                        if (args.length < 2) throw new IllegalArgumentException("Usage: --start <server-name>");
+                        String name = args[1];
+                        if (!store.containsKey(name + ".dir")) throw new IllegalArgumentException("Server not found: " + name);
+                        System.out.println("Starting " + name + "...");
+                        startServerCli(name);
+                    }
+                    case "--stop" -> {
+                        System.out.println("Note: CLI stop is not yet persistent across processes. Use Ctrl+C or 'stop' in console if available.");
+                    }
+                    default -> System.out.println("Unknown command. Available: --list, --start <name>");
+                }
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+            }
+        }
+
+        private void startServerCli(String name) throws IOException {
+            Path dir = store.getServerDir(name);
+            int port = Integer.parseInt(store.getProperty(name + ".port", "25565"));
+            Path propsFile = dir.resolve("server.properties");
+            if (Files.exists(propsFile)) {
+                String content = Files.readString(propsFile);
+                content = content.replaceAll("server-port=\\d+", "server-port=" + port);
+                Files.writeString(propsFile, content);
+            }
+
+            String javaBin = processManager.detectJava(store.getProperty(name + ".version", "1.21"));
+            int ram = Integer.parseInt(store.getProperty(name + ".ram", "4096"));
+            ProcessBuilder pb = new ProcessBuilder(javaBin, "-Xmx" + ram + "M", "-Xms" + Math.max(512, ram / 2) + "M", "-jar", "server.jar", "--nogui");
+            pb.directory(dir.toFile());
+            pb.inheritIO();
+            Process p = pb.start();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    System.out.println("\nShutting down server...");
+                    p.getOutputStream().write("stop\n".getBytes(StandardCharsets.UTF_8));
+                    p.getOutputStream().flush();
+                    p.waitFor();
+                } catch (Exception ignored) {}
+            }));
+            try {
+                p.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -640,12 +724,9 @@ public class LocalMJava extends JFrame {
         if (version == null) throw new IllegalStateException("No server version selected");
         String name = cleanName(serverName.getText());
 
-        JFileChooser chooser = new JFileChooser();
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        chooser.setDialogTitle("Choose parent folder for " + name);
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-
-        Path dir = chooser.getSelectedFile().toPath().resolve(name);
+        Path parentDir = chooseParentInstallDirectory(name);
+        if (parentDir == null) return;
+        Path dir = parentDir.resolve(name);
         try {
             Files.createDirectories(dir);
             int port = findNextFreeServerPort();
@@ -690,6 +771,38 @@ public class LocalMJava extends JFrame {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Path chooseParentInstallDirectory(String serverName) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            chooser.setDialogTitle("Choose parent folder for " + serverName);
+            if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return null;
+            return chooser.getSelectedFile().toPath();
+        }
+
+        final Path[] selectedPath = new Path[1];
+        final RuntimeException[] failure = new RuntimeException[1];
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                try {
+                    JFileChooser chooser = new JFileChooser();
+                    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                    chooser.setDialogTitle("Choose parent folder for " + serverName);
+                    if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                        selectedPath[0] = chooser.getSelectedFile().toPath();
+                    }
+                } catch (RuntimeException e) {
+                    failure[0] = e;
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to open install directory chooser", e);
+        }
+
+        if (failure[0] != null) throw failure[0];
+        return selectedPath[0];
     }
 
     private int getSelectedRam() {

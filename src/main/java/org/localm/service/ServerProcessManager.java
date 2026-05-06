@@ -1,6 +1,10 @@
 package org.localm.service;
 
 import java.io.*;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,11 +20,15 @@ import java.util.regex.Pattern;
 public class ServerProcessManager {
     private final Map<String, Process> activeServers = new ConcurrentHashMap<>();
     private final Path logDir;
+    private final Path toolsDir;
+    private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
     public ServerProcessManager(Path dataDir) {
         this.logDir = dataDir.resolve("logs");
+        this.toolsDir = dataDir.resolve("tools");
         try {
             Files.createDirectories(logDir);
+            Files.createDirectories(toolsDir);
         } catch (IOException ignored) {}
     }
 
@@ -62,8 +70,7 @@ public class ServerProcessManager {
     private Path findForgeArgsFile(Path dir) {
         Path libs = dir.resolve("libraries");
         if (!Files.exists(libs)) return null;
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        String target = isWindows ? "win_args.txt" : "unix_args.txt";
+        String target = "win_args.txt";
         try (var walk = Files.walk(libs, 8)) {
             return walk.filter(p -> p.getFileName().toString().equals(target)).findFirst().orElse(null);
         } catch (IOException e) {
@@ -104,8 +111,7 @@ public class ServerProcessManager {
             // But we can get CPU duration. For RAM, we'll have to use a workaround or stick to CPU for now.
             // Actually, ProcessHandle.info().totalCpuDuration() is available.
             
-            // To keep it dependency-free and simple, we'll try to use 'tasklist' on Windows or 'ps' on Linux
-            // if we want more detailed info. But let's see if we can get anything from ProcessHandle.
+            // To keep it dependency-free and simple, we use ProcessHandle only.
             
             Optional<Instant> start = info.startInstant();
             Optional<java.time.Duration> cpu = info.totalCpuDuration();
@@ -144,9 +150,12 @@ public class ServerProcessManager {
 
     public String detectJava(String mcVersion) {
         int required = requiredJava(mcVersion);
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (!osName.contains("win")) {
+            throw new IllegalStateException("VoxelPort first release is Windows-only.");
+        }
         List<String> candidates = new ArrayList<>();
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        String bin = isWindows ? "java.exe" : "java";
+        String bin = "java.exe";
 
         candidates.add(bin);
         String javaHome = System.getenv("JAVA_HOME");
@@ -155,12 +164,111 @@ public class ServerProcessManager {
         }
         candidates.add(Path.of(System.getProperty("java.home"), "bin", bin).toString());
 
+        // Check already managed runtimes first so we don't redownload.
+        Path managedRoot = toolsDir.resolve("java");
+        if (Files.exists(managedRoot)) {
+            try (var stream = Files.list(managedRoot)) {
+                stream.filter(Files::isDirectory).forEach(dir -> {
+                    Path javaBin = dir.resolve("bin").resolve("java.exe");
+                    if (Files.exists(javaBin)) {
+                        candidates.add(javaBin.toString());
+                    }
+                });
+            } catch (IOException ignored) {}
+        }
+
         for (String candidate : candidates) {
             int major = getJavaMajor(candidate);
             if (major >= required) return candidate;
         }
 
+        // Auto-bootstrap Java for end users when required version is missing.
+        Path downloaded = ensureManagedJava(required);
+        if (downloaded != null) {
+            return downloaded.toString();
+        }
+
         throw new IllegalStateException("Minecraft " + mcVersion + " needs Java " + required + "+. Install Java 21 or newer.");
+    }
+
+    private Path ensureManagedJava(int requiredMajor) {
+        if (requiredMajor <= 0) return null;
+        try {
+            Path javaRoot = toolsDir.resolve("java");
+            Files.createDirectories(javaRoot);
+            Path targetDir = javaRoot.resolve("temurin-" + requiredMajor);
+            Path javaExe = targetDir.resolve("bin").resolve("java.exe");
+            if (Files.exists(javaExe)) return javaExe;
+
+            Path zip = Files.createTempFile("voxelport-java-", ".zip");
+            try {
+                String url = "https://api.adoptium.net/v3/binary/latest/" + requiredMajor
+                        + "/ga/windows/x64/jre/hotspot/normal/eclipse";
+                HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                        .header("User-Agent", "VoxelPort/1.0.0")
+                        .build();
+                HttpResponse<Path> res = http.send(req, HttpResponse.BodyHandlers.ofFile(zip));
+                if (res.statusCode() < 200 || res.statusCode() >= 300) {
+                    throw new IOException("Java download failed with HTTP " + res.statusCode());
+                }
+                unzip(zip, javaRoot);
+            } finally {
+                Files.deleteIfExists(zip);
+            }
+
+            // Adoptium zips extract into versioned folder. Normalize it to temurin-{major}.
+            if (!Files.exists(javaExe)) {
+                try (var stream = Files.list(javaRoot)) {
+                    Path extracted = stream
+                            .filter(Files::isDirectory)
+                            .filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).contains(String.valueOf(requiredMajor)))
+                            .filter(p -> Files.exists(p.resolve("bin").resolve("java.exe")))
+                            .findFirst()
+                            .orElse(null);
+                    if (extracted != null && !extracted.equals(targetDir)) {
+                        if (Files.exists(targetDir)) {
+                            deleteDirectory(targetDir);
+                        }
+                        Files.move(extracted, targetDir);
+                    }
+                }
+            }
+            return Files.exists(javaExe) ? javaExe : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void unzip(Path zipFile, Path destinationDir) throws IOException {
+        try (var zipIn = new java.util.zip.ZipInputStream(Files.newInputStream(zipFile))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zipIn.getNextEntry()) != null) {
+                Path resolved = destinationDir.resolve(entry.getName()).normalize();
+                if (!resolved.startsWith(destinationDir)) {
+                    throw new IOException("Blocked zip slip entry: " + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(resolved);
+                } else {
+                    Files.createDirectories(resolved.getParent());
+                    Files.copy(zipIn, resolved, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                zipIn.closeEntry();
+            }
+        }
+    }
+
+    private void deleteDirectory(Path dir) throws IOException {
+        if (!Files.exists(dir)) return;
+        try (var walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        }
     }
 
     private int requiredJava(String mcVersion) {

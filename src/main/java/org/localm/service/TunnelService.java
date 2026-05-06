@@ -8,6 +8,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -102,13 +103,45 @@ public class TunnelService {
     }
 
     private Path daemonPath() {
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        String bin = isWindows ? "tunnel-daemon.exe" : "tunnel-daemon";
-        Path dev = Path.of("bin", bin).toAbsolutePath();
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (!osName.contains("win")) {
+            throw new IllegalStateException("VoxelPort first release is Windows-only.");
+        }
+        Path dev = Path.of("bin", "tunnel-daemon.exe").toAbsolutePath();
         if (Files.exists(dev)) return dev;
-        Path app = Path.of(System.getProperty("user.dir"), "bin", bin);
+        Path app = Path.of(System.getProperty("user.dir"), "bin", "tunnel-daemon.exe");
         if (Files.exists(app)) return app;
-        throw new IllegalStateException("tunnel-daemon not found");
+        Path managed = managedToolsDir().resolve("tunnel-daemon.exe");
+        if (Files.exists(managed)) return managed;
+        downloadTunnelDaemon(managed);
+        return managed;
+    }
+
+    private Path managedToolsDir() {
+        String base = System.getenv("APPDATA");
+        if (base == null || base.isBlank()) {
+            base = System.getProperty("user.home");
+        }
+        Path dir = Path.of(base, "VoxelPort", "tools");
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create tools directory: " + dir, e);
+        }
+        return dir;
+    }
+
+    private void downloadTunnelDaemon(Path target) {
+        String url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe";
+        try {
+            Path temp = Files.createTempFile("voxelport-cloudflared-", ".exe");
+            try (InputStream in = URI.create(url).toURL().openStream()) {
+                Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to download tunnel-daemon.exe automatically", e);
+        }
     }
 
     private int freePort() throws IOException {
