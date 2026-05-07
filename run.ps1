@@ -3,6 +3,9 @@ $root    = Split-Path -Parent $MyInvocation.MyCommand.Path
 $classes = Join-Path $root "build\classes"
 $lib     = Join-Path $root "lib"
 
+if (Test-Path $classes) {
+    Remove-Item -LiteralPath $classes -Recurse -Force -ErrorAction SilentlyContinue
+}
 New-Item -ItemType Directory -Force $classes | Out-Null
 
 # Collect lib jars

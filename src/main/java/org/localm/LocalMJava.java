@@ -325,10 +325,32 @@ public class LocalMJava extends JFrame {
         title.setForeground(new Color(100, 200, 255));
         header.add(title, BorderLayout.WEST);
 
+        JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        rightHeader.setOpaque(false);
+        
+        JButton sponsorHeaderBtn = new JButton("💖 Sponsor");
+        sponsorHeaderBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        sponsorHeaderBtn.setForeground(new Color(216, 74, 123));
+        sponsorHeaderBtn.setFocusPainted(false);
+        sponsorHeaderBtn.setContentAreaFilled(false);
+        sponsorHeaderBtn.setBorderPainted(false);
+        sponsorHeaderBtn.setFont(sponsorHeaderBtn.getFont().deriveFont(Font.BOLD, 12f));
+        sponsorHeaderBtn.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().browse(new URI("https://github.com/sponsors/trazhub"));
+            } catch (Exception ex) {
+                showError(ex);
+            }
+        });
+        rightHeader.add(sponsorHeaderBtn);
+
         JLabel badge = new JLabel("v1.0.0");
         badge.setFont(badge.getFont().deriveFont(Font.PLAIN, 11f));
         badge.setForeground(new Color(120, 120, 140));
-        header.add(badge, BorderLayout.EAST);
+        badge.setBorder(new EmptyBorder(4, 0, 0, 0));
+        rightHeader.add(badge);
+
+        header.add(rightHeader, BorderLayout.EAST);
         root.add(header, BorderLayout.NORTH);
 
         // ── Tabs ──────────────────────────────────────────────────────────────
@@ -1002,9 +1024,25 @@ public class LocalMJava extends JFrame {
 
         panel.add(new JScrollPane(info), BorderLayout.CENTER);
 
+        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        
         JButton openData = new JButton("Open Data Folder");
         openData.addActionListener(e -> CompletableFuture.runAsync(() -> open(store.getDataDir())));
-        panel.add(openData, BorderLayout.SOUTH);
+        
+        JButton sponsorBtn = new JButton("💖 Sponsor");
+        sponsorBtn.setForeground(new Color(216, 74, 123));
+        sponsorBtn.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().browse(new URI("https://github.com/sponsors/trazhub"));
+            } catch (Exception ex) {
+                showError(ex);
+            }
+        });
+        
+        bottomBar.add(openData);
+        bottomBar.add(sponsorBtn);
+        
+        panel.add(bottomBar, BorderLayout.SOUTH);
         return panel;
     }
 

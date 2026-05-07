@@ -40,7 +40,7 @@ if ($libJars) {
         Pop-Location
         # Merge into classes (skip META-INF manifest)
         Get-ChildItem -Path $extractDir -Recurse -File |
-            Where-Object { $_.FullName -notmatch "META-INF[/\\]MANIFEST" } |
+            Where-Object { $_.FullName -notmatch "META-INF[/\\]MANIFEST" -and $_.Name -ne "module-info.class" } |
             ForEach-Object {
                 $rel = $_.FullName.Substring($extractDir.Length + 1)
                 $dest = Join-Path $classes $rel
@@ -53,7 +53,7 @@ if ($libJars) {
 jar --create --file $jar --main-class org.localm.LocalMJava -C $classes .
 
 $runtimeImage = Join-Path $build "runtime"
-jlink --add-modules java.desktop,java.net.http,java.logging,java.management,jdk.crypto.ec,jdk.zipfs `
+jlink --add-modules java.desktop,java.net.http,java.logging,java.management,jdk.management,jdk.crypto.ec,jdk.zipfs `
       --output $runtimeImage --strip-debug --no-header-files --no-man-pages
 
 # Bundle required tools into the jpackage input so installer includes them.
