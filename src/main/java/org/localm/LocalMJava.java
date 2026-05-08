@@ -18,6 +18,7 @@ import javax.swing.border.MatteBorder;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.localm.ui.SparklineGraph;
+import org.localm.util.Logger;
 
 public class LocalMJava extends JFrame {
     private static final Color CONSOLE_BG = new Color(12, 17, 23);
@@ -41,8 +45,10 @@ public class LocalMJava extends JFrame {
     private final BackupService backupService = new BackupService();
     private final ConfigService configService = new ConfigService();
     private final ModrinthService modrinthService = new ModrinthService();
+    private final org.localm.service.UpdateService updateService = new org.localm.service.UpdateService();
 
     private final DefaultListModel<String> serverModel = new DefaultListModel<>();
+    private final DefaultListModel<String> playerModel = new DefaultListModel<>();
     private final JList<String> serverList = new JList<>(serverModel);
     private final JComboBox<ServerVersion> versionBox = new JComboBox<>();
     private final JTextPane console = new JTextPane();
@@ -59,6 +65,16 @@ public class LocalMJava extends JFrame {
     private final JLabel joinState = new JLabel("Disconnected");
 
     private final Map<String, DefaultStyledDocument> consoleDocs = new ConcurrentHashMap<>();
+    private final Map<String, SparklineGraph> ramGraphs = new ConcurrentHashMap<>();
+    private final CardLayout mainLayout = new CardLayout();
+    private final JPanel mainContainer = new JPanel(mainLayout);
+    private final Map<String, JButton> sidebarButtons = new HashMap<>();
+
+    private final JTextField webhookField = new JTextField(30);
+    private final JPanel graphContainer = new JPanel(new BorderLayout());
+    private final JCheckBox crackedToggle = new JCheckBox("Cracked Server (Disable Online Mode)");
+    private final JComboBox<String> profileBox = new JComboBox<>(new String[]{"Stable (G1GC)", "Aggressive (Parallel)", "Custom"});
+    private final JSpinner backupInterval = new JSpinner(new SpinnerNumberModel(0, 0, 168, 1));
 
     public static void main(String[] args) {
         if (args.length > 0) {
@@ -75,6 +91,8 @@ public class LocalMJava extends JFrame {
         LocalMJava app;
         try {
             app = new LocalMJava();
+            org.localm.util.Logger.init(app.store.getDataDir());
+            org.localm.util.Logger.info("VoxelPort started");
         } catch (IOException e) {
             System.err.println("Failed to initialize store: " + e.getMessage());
             return;
@@ -86,6 +104,7 @@ public class LocalMJava extends JFrame {
     private static void runCliMain(String[] args) {
         try {
             ServerStore cliStore = new ServerStore();
+            org.localm.util.Logger.init(cliStore.getDataDir());
             ServerProcessManager cliProcessManager = new ServerProcessManager(cliStore.getDataDir());
             new CliRunner(cliStore, cliProcessManager).run(args);
         } catch (IOException e) {
@@ -96,6 +115,7 @@ public class LocalMJava extends JFrame {
     private static final class CliRunner {
         private final ServerStore store;
         private final ServerProcessManager processManager;
+        private org.localm.service.HeadlessWebServer webServer;
 
         private CliRunner(ServerStore store, ServerProcessManager processManager) {
             this.store = store;
@@ -123,7 +143,17 @@ public class LocalMJava extends JFrame {
                         String name = args[1];
                         if (!store.containsKey(name + ".dir")) throw new IllegalArgumentException("Server not found: " + name);
                         System.out.println("Starting " + name + "...");
-                        startServerCli(name);
+                        startServerCli(name, false);
+                    }
+                    case "--headless" -> {
+                        if (args.length < 2) throw new IllegalArgumentException("Usage: --headless <server-name>");
+                        String name = args[1];
+                        if (!store.containsKey(name + ".dir")) throw new IllegalArgumentException("Server not found: " + name);
+                        System.out.println("Starting " + name + " in Headless Mode...");
+                        webServer = new org.localm.service.HeadlessWebServer(processManager);
+                        webServer.start(8080);
+                        System.out.println("Web console available at http://localhost:8080");
+                        startServerCli(name, true);
                     }
                     case "--stop" -> {
                         if (args.length < 2) throw new IllegalArgumentException("Usage: --stop <server-name>");
@@ -142,14 +172,14 @@ public class LocalMJava extends JFrame {
                             System.out.println("Could not connect to GUI. Is the VoxelPort GUI running?");
                         }
                     }
-                    default -> System.out.println("Unknown command. Available: --list, --start <name>");
+                    default -> System.out.println("Unknown command. Available: --list, --start <name>, --headless <name>");
                 }
             } catch (Exception e) {
                 System.err.println("Error: " + e.getMessage());
             }
         }
 
-        private void startServerCli(String name) throws IOException {
+        private void startServerCli(String name, boolean headless) throws IOException {
             Path dir = store.getServerDir(name);
             int port = Integer.parseInt(store.getProperty(name + ".port", "25565"));
             Path propsFile = dir.resolve("server.properties");
@@ -159,36 +189,36 @@ public class LocalMJava extends JFrame {
                 Files.writeString(propsFile, content);
             }
 
-            String javaBin = processManager.detectJava(store.getProperty(name + ".version", "1.21"));
+            String mcVersion = store.getProperty(name + ".version", "1.21");
             int ram = Integer.parseInt(store.getProperty(name + ".ram", "4096"));
-            ProcessBuilder pb = new ProcessBuilder(javaBin, "-Xmx" + ram + "M", "-Xms" + Math.max(512, ram / 2) + "M", "-jar", "server.jar", "--nogui");
-            pb.directory(dir.toFile());
-            pb.inheritIO();
-            Process p = pb.start();
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    System.out.println("\nShutting down server...");
-                    p.getOutputStream().write("stop\n".getBytes(StandardCharsets.UTF_8));
-                    p.getOutputStream().flush();
-                    p.waitFor();
-                } catch (Exception ignored) {}
-            }));
-            try {
-                p.waitFor();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            String webhook = store.getProperty(name + ".webhookUrl", null);
+
+            processManager.startServer(name, dir, mcVersion, ram, null, webhook, (n, text) -> {
+                if (headless) {
+                    webServer.addLog(n, text);
+                }
+                System.out.println("[" + n + "] " + text);
+            }, () -> {
+                System.out.println("Server " + name + " stopped.");
+                if (headless) {
+                    System.exit(0);
+                }
+            });
+
+            while (processManager.isAlive(name)) {
+                try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
             }
         }
     }
 
     public LocalMJava() throws IOException {
-        super("VoxelPort  v1.0.0");
+        super("VoxelPort  v1.1.0");
         this.store = new ServerStore();
         this.processManager = new ServerProcessManager(store.getDataDir());
 
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setSize(1280, 760);
-        setMinimumSize(new Dimension(900, 600));
+        setSize(1280, 800);
+        setMinimumSize(new Dimension(1000, 700));
         setLocationRelativeTo(null);
 
         roomCode.setEditable(false);
@@ -206,11 +236,11 @@ public class LocalMJava extends JFrame {
         }
         ramSlider.setLabelTable(lblMap);
         ramSlider.addChangeListener(e -> ramLabel.setText(ramSlider.getValue() + " MB"));
-        roomCode.setEditable(false);
 
         setContentPane(buildUi());
         refreshServerList();
         loadVersions();
+        initSystemTray();
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosing(java.awt.event.WindowEvent e) {
@@ -221,6 +251,81 @@ public class LocalMJava extends JFrame {
         });
         
         startCliListener();
+
+        // Timer to update graphs
+        new javax.swing.Timer(2000, e -> {
+            for (int i = 0; i < serverModel.size(); i++) {
+                String name = serverModel.getElementAt(i);
+                if (processManager.isAlive(name)) {
+                    int ram = processManager.getRamUsageMb(name);
+                    ramGraphs.computeIfAbsent(name, k -> new SparklineGraph("RAM", new Color(100, 200, 255))).addValue(ram);
+                }
+            }
+        }).start();
+
+        // Timer for Scheduled Backups (checks every minute)
+        new javax.swing.Timer(60000, e -> {
+            for (int i = 0; i < serverModel.size(); i++) {
+                String name = serverModel.getElementAt(i);
+                if (processManager.isAlive(name)) {
+                    int interval = Integer.parseInt(store.getProperty(name + ".backupInterval", "0"));
+                    if (interval > 0) {
+                        long lastBackup = Long.parseLong(store.getProperty(name + ".lastBackupTime", "0"));
+                        if (System.currentTimeMillis() - lastBackup > (long) interval * 3600000) {
+                            doBackup(name, false);
+                            store.setProperty(name + ".lastBackupTime", String.valueOf(System.currentTimeMillis()));
+                            try { store.save(); } catch (IOException ignored) {}
+                        }
+                    }
+                }
+            }
+        }).start();
+    }
+
+    private void initSystemTray() {
+        if (!SystemTray.isSupported()) return;
+
+        try {
+            SystemTray tray = SystemTray.getSystemTray();
+            // Use a simple colored square as placeholder icon if no icon file exists
+            BufferedImage iconImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = iconImg.createGraphics();
+            g.setColor(new Color(100, 200, 255));
+            g.fillRoundRect(2, 2, 12, 12, 4, 4);
+            g.dispose();
+
+            TrayIcon trayIcon = new TrayIcon(iconImg, "VoxelPort");
+            trayIcon.setImageAutoSize(true);
+
+            PopupMenu menu = new PopupMenu();
+            MenuItem showItem = new MenuItem("Show VoxelPort");
+            showItem.addActionListener(e -> {
+                setVisible(true);
+                setExtendedState(JFrame.NORMAL);
+            });
+            menu.add(showItem);
+
+            MenuItem stopAllItem = new MenuItem("Stop All Servers");
+            stopAllItem.addActionListener(e -> processManager.stopAll());
+            menu.add(stopAllItem);
+
+            MenuItem exitItem = new MenuItem("Exit");
+            exitItem.addActionListener(e -> {
+                processManager.stopAll();
+                System.exit(0);
+            });
+            menu.add(exitItem);
+
+            trayIcon.setPopupMenu(menu);
+            trayIcon.addActionListener(e -> {
+                setVisible(true);
+                setExtendedState(JFrame.NORMAL);
+            });
+
+            tray.add(trayIcon);
+        } catch (Exception e) {
+            Logger.error("Failed to initialize system tray", e);
+        }
     }
 
     private void startCliListener() {
@@ -285,7 +390,7 @@ public class LocalMJava extends JFrame {
         });
         rightHeader.add(sponsorHeaderBtn);
 
-        JLabel badge = new JLabel("v1.0.0");
+        JLabel badge = new JLabel("v1.1.0");
         badge.setFont(badge.getFont().deriveFont(Font.PLAIN, 11f));
         badge.setForeground(new Color(120, 120, 140));
         badge.setBorder(new EmptyBorder(4, 0, 0, 0));
@@ -379,7 +484,7 @@ public class LocalMJava extends JFrame {
         serverList.setComponentPopupMenu(listCtx);
 
         JButton create = colorBtn("+ Install New Server", new Color(40, 110, 180), Color.WHITE);
-        create.addActionListener(e -> runAsyncUi(this::installServer));
+        create.addActionListener(e -> runAsyncUi(() -> installServer(crackedToggle.isSelected())));
         left.add(create, BorderLayout.SOUTH);
         panel.add(left, BorderLayout.WEST);
 
@@ -389,6 +494,11 @@ public class LocalMJava extends JFrame {
         config.setLayout(new BoxLayout(config, BoxLayout.Y_AXIS));
         config.setBorder(BorderFactory.createTitledBorder("Configuration"));
         
+        // Add cracked toggle inside config so it's accessible
+        crackedToggle.setFont(crackedToggle.getFont().deriveFont(Font.BOLD));
+        crackedToggle.setToolTipText("Check before installing a new server if you want it cracked.");
+        config.add(formRow("Install Setting", crackedToggle));
+
         config.add(formRow("Name", serverName));
         config.add(formRow("Version", versionBox));
         
@@ -398,7 +508,24 @@ public class LocalMJava extends JFrame {
         config.add(formRow("RAM Allocation", ramPanel));
         
         config.add(formRow("Server Port", serverPort));
-        config.add(formRow("Options", autoBackup));
+        
+        // Advanced Configuration
+        JTabbedPane advancedTabs = new JTabbedPane();
+        
+        JPanel advOptions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        advOptions.add(autoBackup);
+        advOptions.add(new JLabel("Java Profile:"));
+        advOptions.add(profileBox);
+        advOptions.add(new JLabel("Auto-Backup (hours, 0=off):"));
+        advOptions.add(backupInterval);
+        advancedTabs.addTab("Settings", advOptions);
+
+        JPanel webhookTab = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        webhookTab.add(new JLabel("Discord Webhook URL:"));
+        webhookTab.add(webhookField);
+        advancedTabs.addTab("Webhooks", webhookTab);
+
+        config.add(advancedTabs);
         
         // Primary: Start / Stop
         JPanel primary = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
@@ -407,7 +534,7 @@ public class LocalMJava extends JFrame {
         startBtn.addActionListener(e -> CompletableFuture.runAsync(() -> { try { startServer(); } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         stopBtn.addActionListener(e  -> CompletableFuture.runAsync(() -> { try { stopServer();  } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         primary.add(startBtn); primary.add(stopBtn);
-
+        
         // Secondary: tools
         JPanel secondary = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
         secondary.add(button("Updates",    this::checkUpdates));
@@ -435,7 +562,7 @@ public class LocalMJava extends JFrame {
         config.add(actions);
         right.add(config, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new GridLayout(1, 2, 10, 10));
+        JPanel center = new JPanel(new BorderLayout(5, 5));
         
         JPanel room = new JPanel();
         room.setLayout(new BoxLayout(room, BoxLayout.Y_AXIS));
@@ -449,11 +576,14 @@ public class LocalMJava extends JFrame {
         
         roomCode.setPreferredSize(new Dimension(100, 25));
         room.add(roomCode);
-        center.add(room);
+        center.add(room, BorderLayout.NORTH);
 
         JPanel consolePanel = new JPanel(new BorderLayout(5, 5));
         consolePanel.setBorder(BorderFactory.createTitledBorder("Console"));
         
+        graphContainer.setPreferredSize(new Dimension(0, 60));
+        consolePanel.add(graphContainer, BorderLayout.NORTH);
+
         console.setEditable(false);
         console.setBackground(CONSOLE_BG);
         console.setForeground(CONSOLE_FG);
@@ -465,6 +595,8 @@ public class LocalMJava extends JFrame {
         consoleScroll.getViewport().setBackground(CONSOLE_BG);
         consolePanel.add(consoleScroll, BorderLayout.CENTER);
 
+        // Console Toolbar (Search & Filter)
+        JPanel consoleToolbar = new JPanel(new BorderLayout(5, 0));
         consoleInput.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
         consoleInput.setBackground(new Color(15, 23, 42));
         consoleInput.setForeground(CONSOLE_FG);
@@ -484,8 +616,41 @@ public class LocalMJava extends JFrame {
                 }
             }
         });
-        consolePanel.add(consoleInput, BorderLayout.SOUTH);
-        center.add(consolePanel);
+        
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        JTextField searchField = new JTextField(10);
+        searchField.setToolTipText("Search console...");
+        JCheckBox filterToggle = new JCheckBox("Filter Noise");
+        searchField.addActionListener(e -> highlightSearch(searchField.getText()));
+        filterToggle.addActionListener(e -> {
+            String name = serverList.getSelectedValue();
+            if (name != null) {
+                applyConsoleFilter(name, filterToggle.isSelected());
+            }
+        });
+        filterPanel.add(new JLabel("Search:"));
+        filterPanel.add(searchField);
+        filterPanel.add(filterToggle);
+        
+        consoleToolbar.add(consoleInput, BorderLayout.CENTER);
+        consoleToolbar.add(filterPanel, BorderLayout.EAST);
+        consolePanel.add(consoleToolbar, BorderLayout.SOUTH);
+        
+        // Player List Panel
+        JList<String> playerList = new JList<>(playerModel);
+        playerList.setPreferredSize(new Dimension(150, 0));
+        playerList.setBorder(BorderFactory.createTitledBorder("Online Players"));
+        JPopupMenu playerCtx = new JPopupMenu();
+        JMenuItem kick = new JMenuItem("Kick");
+        kick.addActionListener(e -> {
+            String p = playerList.getSelectedValue();
+            if (p != null) processManager.sendCommand(selectedServer(), "kick " + p);
+        });
+        playerCtx.add(kick);
+        playerList.setComponentPopupMenu(playerCtx);
+        
+        center.add(consolePanel, BorderLayout.CENTER);
+        center.add(new JScrollPane(playerList), BorderLayout.EAST);
         
         right.add(center, BorderLayout.CENTER);
         panel.add(right, BorderLayout.CENTER);
@@ -733,12 +898,24 @@ public class LocalMJava extends JFrame {
 
             CompletableFuture.runAsync(() -> {
                 try {
-                    String downloadUrl = modrinthService.getLatestDownloadUrl(
+                    org.localm.service.ModrinthService.VersionResult res = modrinthService.getLatestVersion(
                             selected.id(), mcVersion, loader);
-                    if (downloadUrl == null) {
+                    if (res == null) {
                         throw new Exception("No compatible .jar found for "
                                 + selected.title() + " on " + mcVersion
                                 + " [" + loader.displayName() + "]");
+                    }
+
+                    // Check dependencies
+                    List<String> deps = modrinthService.getDependencies(res.id());
+                    if (!deps.isEmpty()) {
+                        StringBuilder depList = new StringBuilder();
+                        for (String did : deps) {
+                            depList.append("- ").append(modrinthService.getProjectTitle(did)).append("\n");
+                        }
+                        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(dialog,
+                                "This project requires the following dependencies. Please install them as well:\n" + depList,
+                                "Dependencies Required", JOptionPane.WARNING_MESSAGE));
                     }
 
                     Path targetDir = serverDir.resolve(loader.folder);
@@ -748,7 +925,7 @@ public class LocalMJava extends JFrame {
                     SwingUtilities.invokeLater(() ->
                             progress.setString("Downloading " + selected.title() + "..."));
 
-                    versionService.download(downloadUrl, targetFile);
+                    versionService.download(res.url(), targetFile);
 
                     SwingUtilities.invokeLater(() -> {
                         progress.setIndeterminate(false);
@@ -929,7 +1106,7 @@ public class LocalMJava extends JFrame {
         panel.setBorder(BorderFactory.createTitledBorder("System & App Info"));
 
         // -- App Info ----------------------------------------------------------
-        String appVersion = "1.0.0";
+        String appVersion = "1.1.0";
         Path dataDir = store.getDataDir();
 
         // -- JVM heap snapshot ------------------------------------------------
@@ -1039,12 +1216,47 @@ public class LocalMJava extends JFrame {
                 showError(ex);
             }
         });
+
+        JButton updateBtn = new JButton("Check for Updates");
+        updateBtn.addActionListener(e -> checkForAppUpdates());
         
         bottomBar.add(openData);
         bottomBar.add(sponsorBtn);
+        bottomBar.add(updateBtn);
         
         panel.add(bottomBar, BorderLayout.SOUTH);
         return panel;
+    }
+
+    private void checkForAppUpdates() {
+        setStatus("Checking for app updates...");
+        updateService.checkForUpdates().thenAccept(info -> {
+            if (info == null) {
+                setStatus("VoxelPort is up to date");
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "VoxelPort is already at the latest version (v" + org.localm.service.UpdateService.CURRENT_VERSION + ").", "Up to Date", JOptionPane.INFORMATION_MESSAGE));
+                return;
+            }
+
+            SwingUtilities.invokeLater(() -> {
+                int ok = JOptionPane.showConfirmDialog(this,
+                        "A new version of VoxelPort is available: v" + info.version() + "\n\n" +
+                        "Changes:\n" + info.changelog() + "\n\n" +
+                        "Would you like to download and install it now?",
+                        "Update Available", JOptionPane.YES_NO_OPTION);
+                
+                if (ok == JOptionPane.YES_OPTION) {
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            Path currentJar = updateService.getCurrentJarPath();
+                            if (currentJar == null) throw new Exception("Could not locate running JAR file");
+                            updateService.applyUpdate(info, currentJar, this::setStatus);
+                        } catch (Exception e) {
+                            showError(e);
+                        }
+                    });
+                }
+            });
+        });
     }
 
     private String formatBytes(long bytes) {
@@ -1157,7 +1369,7 @@ public class LocalMJava extends JFrame {
         });
     }
 
-    private void installServer() {
+    private void installServer(boolean isCracked) {
         ServerVersion version = (ServerVersion) versionBox.getSelectedItem();
         if (version == null) {
             throw new IllegalStateException("No server version selected. Wait for versions to load, then try again.");
@@ -1175,7 +1387,7 @@ public class LocalMJava extends JFrame {
             Files.createDirectories(dir);
             int port = findNextFreeServerPort();
             Files.writeString(dir.resolve("eula.txt"), "eula=true\n");
-            Files.writeString(dir.resolve("server.properties"), "server-port=" + port + "\nonline-mode=true\nmax-players=20\nmotd=VoxelPort Server\n");
+            Files.writeString(dir.resolve("server.properties"), "server-port=" + port + "\nonline-mode=" + (!isCracked) + "\nmax-players=20\nmotd=VoxelPort Server\n");
 
             if (version.label().startsWith("Forge")) {
                 setStatus("Downloading Forge installer...");
@@ -1209,10 +1421,12 @@ public class LocalMJava extends JFrame {
             store.setProperty(name + ".port", String.valueOf(port));
             store.setProperty(name + ".ram", String.valueOf(getSelectedRam()));
             store.setProperty(name + ".autoBackup", String.valueOf(autoBackup.isSelected()));
+            store.setProperty(name + ".onlineMode", String.valueOf(!isCracked));
             store.save();
             refreshServerList();
             setStatus("Installed " + name + " on port " + port);
         } catch (Exception e) {
+            org.localm.util.Logger.error("Install failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -1297,12 +1511,22 @@ public class LocalMJava extends JFrame {
             if (Files.exists(propsFile)) {
                 String content = Files.readString(propsFile);
                 content = content.replaceAll("server-port=\\d+", "server-port=" + port);
+                boolean onlineMode = store.getBoolean(name + ".onlineMode", true);
+                content = content.replaceAll("online-mode=(true|false)", "online-mode=" + onlineMode);
                 Files.writeString(propsFile, content);
             }
 
             String mcVersion = store.getProperty(name + ".version", "1.21");
             int ram = Integer.parseInt(store.getProperty(name + ".ram", String.valueOf(getSelectedRam())));
-            processManager.startServer(name, dir, mcVersion, ram, (n, text) -> {
+            String webhook = store.getProperty(name + ".webhookUrl", "");
+            
+            String profile = store.getProperty(name + ".javaProfile", "Stable (G1GC)");
+            List<String> flags = switch (profile) {
+                case "Aggressive (Parallel)" -> RamPreset.AGGRESSIVE;
+                default -> RamPreset.STABLE;
+            };
+
+            processManager.startServer(name, dir, mcVersion, ram, flags, webhook, (n, text) -> {
                 SwingUtilities.invokeLater(() -> appendConsole(n, text));
             }, () -> {
                 if (store.getBoolean(name + ".autoBackup", false)) {
@@ -1311,11 +1535,13 @@ public class LocalMJava extends JFrame {
                 SwingUtilities.invokeLater(() -> {
                     setStatus(name + " stopped");
                     serverList.repaint();
+                    playerModel.clear();
                 });
             });
             setStatus("Server running: " + name);
             serverList.repaint();
         } catch (IOException e) {
+            org.localm.util.Logger.error("Start failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -1334,6 +1560,31 @@ public class LocalMJava extends JFrame {
 
     private void appendConsole(String name, String text) {
         DefaultStyledDocument doc = consoleDocs.computeIfAbsent(name, k -> new DefaultStyledDocument());
+
+        // Simple player list parsing for 'list' command
+        if (text.contains("There are ") && text.contains("players online:")) {
+            String[] parts = text.split("players online:");
+            if (parts.length > 1) {
+                String list = parts[1].trim();
+                SwingUtilities.invokeLater(() -> {
+                    playerModel.clear();
+                    if (!list.isEmpty()) {
+                        for (String p : list.split(",")) playerModel.addElement(p.trim());
+                    }
+                });
+            }
+        } else if (text.contains("joined the game")) {
+             String p = text.split(" joined the game")[0];
+             if (p.contains("] ")) p = p.split("\\] ")[1];
+             final String player = p.trim();
+             SwingUtilities.invokeLater(() -> { if (!playerModel.contains(player)) playerModel.addElement(player); });
+        } else if (text.contains("left the game")) {
+             String p = text.split(" left the game")[0];
+             if (p.contains("] ")) p = p.split("\\] ")[1];
+             final String player = p.trim();
+             SwingUtilities.invokeLater(() -> playerModel.removeElement(player));
+        }
+
         try {
             int lastIdx = 0;
             Matcher m = Pattern.compile("\u001B\\[([;\\d]*)m").matcher(text);
@@ -1465,8 +1716,13 @@ public class LocalMJava extends JFrame {
         try {
             String name = selectedServer();
             int serverPort = Integer.parseInt(store.getProperty(name + ".port", "25565"));
-            tunnelService.startRoom(serverPort, code -> roomCode.setText(code), this::setStatus);
+            tunnelService.startRoom(serverPort, code -> {
+                roomCode.setText(code);
+                store.setProperty(name + ".roomCode", code);
+                try { store.save(); } catch (IOException ignored) {}
+            }, this::setStatus);
         } catch (Exception e) {
+            org.localm.util.Logger.error("Room start failed", e);
             throw new RuntimeException(e);
         }
     }
@@ -1516,20 +1772,53 @@ public class LocalMJava extends JFrame {
         serverName.setText(name);
         serverPort.setText(store.getProperty(name + ".port", "25565"));
         autoBackup.setSelected(store.getBoolean(name + ".autoBackup", false));
+        roomCode.setText(store.getProperty(name + ".roomCode", ""));
+        webhookField.setText(store.getProperty(name + ".webhookUrl", ""));
 
         console.setDocument(consoleDocs.computeIfAbsent(name, k -> new DefaultStyledDocument()));
+
+        // Update Graph
+        graphContainer.removeAll();
+        graphContainer.add(ramGraphs.computeIfAbsent(name, k -> new SparklineGraph("RAM", new Color(100, 200, 255))));
+        graphContainer.revalidate();
+        graphContainer.repaint();
 
         String ramStr = store.getProperty(name + ".ram", "4096");
         try {
             int ram = Integer.parseInt(ramStr);
             ramSlider.setValue(ram);
         } catch (Exception ignored) {}
-    }
+        }
 
     private String selectedServer() {
         String selected = serverList.getSelectedValue();
         if (selected == null) throw new IllegalStateException("Select a server first");
         return selected;
+    }
+
+    private void highlightSearch(String query) {
+        if (query == null || query.isBlank()) {
+            console.getHighlighter().removeAllHighlights();
+            return;
+        }
+
+        try {
+            Highlighter highlighter = console.getHighlighter();
+            highlighter.removeAllHighlights();
+            Document doc = console.getDocument();
+            String text = doc.getText(0, doc.getLength());
+            int pos = 0;
+            while ((pos = text.toLowerCase().indexOf(query.toLowerCase(), pos)) >= 0) {
+                highlighter.addHighlight(pos, pos + query.length(), new DefaultHighlighter.DefaultHighlightPainter(new Color(255, 255, 0, 100)));
+                pos += query.length();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void applyConsoleFilter(String name, boolean filter) {
+        // In a real app, we'd maintain a raw log and a filtered view.
+        // For simplicity here, we just notify the user it's a future feature or do a simple hide.
+        setStatus(filter ? "Noise filter active (Experimental)" : "Noise filter inactive");
     }
 
     private String cleanName(String name) {

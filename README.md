@@ -2,7 +2,7 @@
   <h1>VoxelPort</h1>
   <p><strong>A standalone, lightweight Java Minecraft server manager.</strong></p>
 
-  [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
+  [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)]()
   [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d7.svg)]()
   [![Java](https://img.shields.io/badge/java-17%2B-orange.svg)]()
   [![Sponsor](https://img.shields.io/badge/Sponsor-ff69b4.svg)](https://github.com/sponsors/trazhub)
@@ -135,7 +135,7 @@ VoxelPort uses a dependency-free build process with simple PowerShell scripts.
 
 ```text
 dist\VoxelPort.jar
-dist\VoxelPort-1.0.0-portable.zip
+dist\VoxelPort-1.1.0-portable.zip
 ```
 
 ---

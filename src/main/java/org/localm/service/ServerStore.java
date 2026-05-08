@@ -10,10 +10,19 @@ public class ServerStore {
     private final Properties servers = new Properties();
 
     public ServerStore() throws IOException {
-        dataDir = Paths.get(System.getenv("APPDATA") == null ? System.getProperty("user.home") : System.getenv("APPDATA"), "VoxelPort");
+        Path localData = Paths.get("data");
+        if (Files.exists(localData) && Files.isDirectory(localData)) {
+            dataDir = localData.toAbsolutePath();
+        } else {
+            dataDir = Paths.get(System.getenv("APPDATA") == null ? System.getProperty("user.home") : System.getenv("APPDATA"), "VoxelPort");
+        }
         serversDb = dataDir.resolve("servers.properties");
         Files.createDirectories(dataDir);
         load();
+    }
+
+    public boolean isPortable() {
+        return dataDir.startsWith(Paths.get("").toAbsolutePath());
     }
 
     public void load() throws IOException {

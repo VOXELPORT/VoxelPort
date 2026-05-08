@@ -7,7 +7,7 @@ $input   = Join-Path $build "input"
 $dist    = Join-Path $root "dist"
 $jar     = Join-Path $dist "VoxelPort.jar"
 $lib     = Join-Path $root "lib"
-$zipPath = Join-Path $dist "VoxelPort-1.0.0-portable.zip"
+$zipPath = Join-Path $dist "VoxelPort-1.1.0-portable.zip"
 
 foreach ($path in @($build, $dist)) {
     if (Test-Path $path) {

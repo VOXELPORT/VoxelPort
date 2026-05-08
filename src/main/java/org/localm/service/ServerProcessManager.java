@@ -34,7 +34,7 @@ public class ServerProcessManager {
         } catch (IOException ignored) {}
     }
 
-    public void startServer(String name, Path dir, String mcVersion, int ram, BiConsumer<String, String> logConsumer, Runnable onStop) throws IOException {
+    public void startServer(String name, Path dir, String mcVersion, int ram, List<String> extraFlags, String webhookUrl, BiConsumer<String, String> logConsumer, Runnable onStop) throws IOException {
         if (activeServers.containsKey(name) && activeServers.get(name).isAlive()) {
             throw new IllegalStateException("Server already running");
         }
@@ -44,6 +44,9 @@ public class ServerProcessManager {
         cmd.add(javaBin);
         cmd.add("-Xmx" + ram + "M");
         cmd.add("-Xms" + Math.max(512, ram / 2) + "M");
+        if (extraFlags != null) {
+            cmd.addAll(extraFlags);
+        }
 
         Path userArgs = dir.resolve("user_jvm_args.txt");
         Path forgeArgs = findForgeArgsFile(dir);
@@ -63,9 +66,31 @@ public class ServerProcessManager {
         Process p = pb.start();
         activeServers.put(name, p);
 
+        if (webhookUrl != null && !webhookUrl.isBlank()) {
+            sendWebhook(webhookUrl, "Server **" + name + "** is starting (MC " + mcVersion + ")");
+        }
+
         pipeConsole(name, p.getInputStream(), logConsumer, () -> {
             activeServers.remove(name);
+            if (webhookUrl != null && !webhookUrl.isBlank()) {
+                sendWebhook(webhookUrl, "Server **" + name + "** has stopped");
+            }
             if (onStop != null) onStop.run();
+        });
+    }
+
+    private void sendWebhook(String url, String message) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                String json = "{\"content\": \"" + message.replace("\"", "\\\"") + "\"}";
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(json))
+                        .build();
+                client.send(request, HttpResponse.BodyHandlers.discarding());
+            } catch (Exception ignored) {}
         });
     }
 
@@ -131,14 +156,13 @@ public class ServerProcessManager {
         return p != null && p.isAlive();
     }
 
-    public String getProcessStats(String name) {
+    public int getRamUsageMb(String name) {
         Process p = activeServers.get(name);
-        if (p == null || !p.isAlive()) return "";
+        if (p == null || !p.isAlive()) return 0;
 
         long pid = p.pid();
         try {
-            String osName = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-            if (osName.contains("win")) {
+            if (isWindows()) {
                 ProcessBuilder pb = new ProcessBuilder("tasklist", "/FI", "PID eq " + pid, "/FO", "CSV", "/NH");
                 Process tp = pb.start();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(tp.getInputStream()))) {
@@ -147,27 +171,30 @@ public class ServerProcessManager {
                         String[] parts = line.split("\",\"");
                         if (parts.length >= 5) {
                             String ram = parts[4].replace("\"", "").replace("K", "").replace(",", "").replace(".", "").trim();
-                            long ramBytes = Long.parseLong(ram) * 1024;
-                            return String.format("%.1f MB RAM", ramBytes / 1024.0 / 1024.0);
+                            return (int) (Long.parseLong(ram) / 1024);
                         }
                     }
                 }
             } else {
-                ProcessBuilder pb = new ProcessBuilder("ps", "-p", String.valueOf(pid), "-o", "pmem,rss");
+                ProcessBuilder pb = new ProcessBuilder("ps", "-p", String.valueOf(pid), "-o", "rss=");
                 Process tp = pb.start();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(tp.getInputStream()))) {
-                    reader.readLine(); // skip header
                     String line = reader.readLine();
                     if (line != null && !line.trim().isEmpty()) {
-                        String[] parts = line.trim().split("\\s+");
-                        if (parts.length >= 2) {
-                            long rssKB = Long.parseLong(parts[1]);
-                            return String.format("%.1f MB RAM", rssKB / 1024.0);
-                        }
+                        return (int) (Long.parseLong(line.trim()) / 1024);
                     }
                 }
             }
         } catch (Exception ignored) {}
+        return 0;
+    }
+
+    public String getProcessStats(String name) {
+        int ram = getRamUsageMb(name);
+        if (ram > 0) return ram + " MB RAM";
+
+        Process p = activeServers.get(name);
+        if (p == null || !p.isAlive()) return "";
 
         // Fallback to CPU average
         try {
@@ -185,6 +212,10 @@ public class ServerProcessManager {
         return "Online";
     }
 
+    private boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     private void pipeConsole(String name, InputStream in, BiConsumer<String, String> logConsumer, Runnable onComplete) {
         Path logFile = logDir.resolve(name + ".log");
         CompletableFuture.runAsync(() -> {
@@ -193,14 +224,14 @@ public class ServerProcessManager {
                          StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    logConsumer.accept(name, line);
+                    if (logConsumer != null) logConsumer.accept(name, line);
                     writer.write(line);
                     writer.newLine();
                     writer.flush();
                 }
             } catch (IOException ignored) {
             } finally {
-                onComplete.run();
+                if (onComplete != null) onComplete.run();
             }
         });
     }
@@ -211,13 +242,6 @@ public class ServerProcessManager {
         
         List<String> candidates = new ArrayList<>();
         String bin = osName.contains("win") ? "java.exe" : "java";
-
-        candidates.add(bin);
-        String javaHome = System.getenv("JAVA_HOME");
-        if (javaHome != null && !javaHome.isBlank()) {
-            candidates.add(Path.of(javaHome, "bin", bin).toString());
-        }
-        candidates.add(Path.of(System.getProperty("java.home"), "bin", bin).toString());
 
         // Check already managed runtimes first so we don't redownload.
         Path managedRoot = toolsDir.resolve("java");
@@ -287,7 +311,7 @@ public class ServerProcessManager {
                 String url = "https://api.adoptium.net/v3/binary/latest/" + requiredMajor
                         + "/ga/" + os + "/" + adoptArch + "/jre/hotspot/normal/eclipse";
                 HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                        .header("User-Agent", "VoxelPort/1.0.0")
+                        .header("User-Agent", "VoxelPort/1.1.0")
                         .build();
                 HttpResponse<Path> res = http.send(req, HttpResponse.BodyHandlers.ofFile(archive));
                 if (res.statusCode() < 200 || res.statusCode() >= 300) {

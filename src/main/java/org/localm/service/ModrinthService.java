@@ -24,7 +24,7 @@ import java.net.http.HttpResponse;
  */
 public class ModrinthService {
 
-    private static final String UA = "VoxelPort/1.0.0 (github.com/trazhub/VoxelPort)";
+    private static final String UA = "VoxelPort/1.1.0 (github.com/trazhub/VoxelPort)";
     private final HttpClient http = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
@@ -184,17 +184,16 @@ public class ModrinthService {
      * Fetch the best matching download URL for a project version.
      * Tries the detected loader first, then common fallbacks.
      */
-    public String getLatestDownloadUrl(String projectId, String mcVersion, LoaderType loader)
+    public record VersionResult(String id, String url) {}
+
+    public VersionResult getLatestVersion(String projectId, String mcVersion, LoaderType loader)
             throws IOException, InterruptedException {
 
-        // Candidate loaders to try in order
         List<String> candidates = new ArrayList<>();
         candidates.add(loader.modrinthId);
-        // Paper servers also accept bukkit/spigot plugins
         if (loader == LoaderType.PAPER || loader == LoaderType.SPIGOT) {
             candidates.addAll(List.of("paper", "spigot", "bukkit"));
         }
-        // Fabric can sometimes use universal
         if (loader == LoaderType.FABRIC) {
             candidates.add("fabric");
         }
@@ -205,25 +204,35 @@ public class ModrinthService {
                     + "&loaders="       + URLEncoder.encode("[\"" + tryLoader + "\"]", StandardCharsets.UTF_8);
 
             String json = get(url);
-            String jarUrl = firstJarUrl(json);
-            if (jarUrl != null) return jarUrl;
+            VersionResult res = firstVersion(json);
+            if (res != null) return res;
         }
 
-        // Last resort: any version, any loader (picks first jar available)
         String url = "https://api.modrinth.com/v2/project/" + projectId + "/version";
-        return firstJarUrl(get(url));
+        return firstVersion(get(url));
     }
 
-    /** Legacy string-loader overload */
-    public String getLatestDownloadUrl(String projectId, String mcVersion, String loader)
-            throws IOException, InterruptedException {
-        LoaderType lt = loaderFromString(loader);
-        return getLatestDownloadUrl(projectId, mcVersion, lt);
+    public List<String> getDependencies(String versionId) throws IOException, InterruptedException {
+        String url = "https://api.modrinth.com/v2/version/" + versionId;
+        String json = get(url);
+        Map<String, Object> root = SimpleJson.asObject(SimpleJson.parse(json));
+        List<String> projectIds = new ArrayList<>();
+        for (Object depValue : SimpleJson.asArray(root.get("dependencies"))) {
+            Map<String, Object> dep = SimpleJson.asObject(depValue);
+            if ("required".equals(SimpleJson.asString(dep.get("dependency_type")))) {
+                String pid = SimpleJson.asString(dep.get("project_id"));
+                if (pid != null) projectIds.add(pid);
+            }
+        }
+        return projectIds;
     }
 
-    // -------------------------------------------------------------------------
-    //  Internals
-    // -------------------------------------------------------------------------
+    public String getProjectTitle(String projectId) throws IOException, InterruptedException {
+        String url = "https://api.modrinth.com/v2/project/" + projectId;
+        String json = get(url);
+        Map<String, Object> root = SimpleJson.asObject(SimpleJson.parse(json));
+        return SimpleJson.asString(root.get("title"));
+    }
 
     private String get(String url) throws IOException, InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
@@ -232,14 +241,15 @@ public class ModrinthService {
         return http.send(req, HttpResponse.BodyHandlers.ofString()).body();
     }
 
-    private String firstJarUrl(String json) {
+    private VersionResult firstVersion(String json) {
         for (Object versionValue : SimpleJson.asArray(SimpleJson.parse(json))) {
             Map<String, Object> version = SimpleJson.asObject(versionValue);
+            String id = SimpleJson.asString(version.get("id"));
             for (Object fileValue : SimpleJson.asArray(version.get("files"))) {
                 Map<String, Object> file = SimpleJson.asObject(fileValue);
                 String url = SimpleJson.asString(file.get("url"));
                 if (url != null && url.endsWith(".jar")) {
-                    return url;
+                    return new VersionResult(id, url);
                 }
             }
         }

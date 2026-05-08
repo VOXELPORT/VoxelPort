@@ -39,11 +39,28 @@ public class TunnelService {
                         String code = encodeRoomUrl(m.group());
                         codeConsumer.accept(code);
                         statusConsumer.accept("Room ready");
+                        monitorTunnel(serverPort, codeConsumer, statusConsumer);
                     }
                 }
             } catch (Exception ignored) {}
         });
         statusConsumer.accept("Starting room...");
+    }
+
+    private void monitorTunnel(int serverPort, Consumer<String> codeConsumer, Consumer<String> statusConsumer) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                while (tunnelProcess != null && tunnelProcess.isAlive()) {
+                    Thread.sleep(5000);
+                }
+                if (tunnelProcess != null) {
+                    statusConsumer.accept("Tunnel died. Reconnecting...");
+                    startRoom(serverPort, codeConsumer, statusConsumer);
+                }
+            } catch (Exception e) {
+                statusConsumer.accept("Tunnel monitor failed: " + e.getMessage());
+            }
+        });
     }
 
     public void stopRoom() {
