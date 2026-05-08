@@ -30,6 +30,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LocalMJava extends JFrame {
+    private static final Color CONSOLE_BG = new Color(12, 17, 23);
+    private static final Color CONSOLE_FG = new Color(229, 236, 246);
+    private static final Color CONSOLE_MUTED = new Color(150, 163, 184);
+
     private final ServerStore store;
     private final VersionService versionService = new VersionService();
     private final ServerProcessManager processManager;
@@ -52,6 +56,7 @@ public class LocalMJava extends JFrame {
     private final JTextField roomCode = new JTextField();
     private final JTextField joinCode = new JTextField();
     private final JTextField joinAddress = new JTextField("localhost:25565");
+    private final JLabel joinState = new JLabel("Disconnected");
 
     private final Map<String, DefaultStyledDocument> consoleDocs = new ConcurrentHashMap<>();
 
@@ -85,39 +90,6 @@ public class LocalMJava extends JFrame {
             new CliRunner(cliStore, cliProcessManager).run(args);
         } catch (IOException e) {
             System.err.println("Failed to initialize store: " + e.getMessage());
-        }
-    }
-
-    private void runCli(String[] args) {
-        String cmd = args[0].toLowerCase(Locale.ROOT);
-        try {
-            switch (cmd) {
-                case "--list" -> {
-                    System.out.println("Installed Servers:");
-                    store.stringPropertyNames().stream()
-                            .filter(k -> k.endsWith(".dir"))
-                            .map(k -> k.substring(0, k.length() - 4))
-                            .sorted()
-                            .forEach(name -> {
-                                String port = store.getProperty(name + ".port", "25565");
-                                String version = store.getProperty(name + ".version", "unknown");
-                                System.out.printf("- %s (%s, Port: %s)\n", name, version, port);
-                            });
-                }
-                case "--start" -> {
-                    if (args.length < 2) throw new IllegalArgumentException("Usage: --start <server-name>");
-                    String name = args[1];
-                    if (!store.containsKey(name + ".dir")) throw new IllegalArgumentException("Server not found: " + name);
-                    System.out.println("Starting " + name + "...");
-                    startServerCli(name);
-                }
-                case "--stop" -> {
-                    System.out.println("Note: CLI stop is not yet persistent across processes. Use Ctrl+C or 'stop' in console if available.");
-                }
-                default -> System.out.println("Unknown command. Available: --list, --start <name>");
-            }
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
         }
     }
 
@@ -209,37 +181,6 @@ public class LocalMJava extends JFrame {
         }
     }
 
-    private void startServerCli(String name) throws IOException {
-        Path dir = store.getServerDir(name);
-        int port = Integer.parseInt(store.getProperty(name + ".port", "25565"));
-        Path propsFile = dir.resolve("server.properties");
-        if (Files.exists(propsFile)) {
-            String content = Files.readString(propsFile);
-            content = content.replaceAll("server-port=\\d+", "server-port=" + port);
-            Files.writeString(propsFile, content);
-        }
-
-        String javaBin = processManager.detectJava(store.getProperty(name + ".version", "1.21"));
-        int ram = Integer.parseInt(store.getProperty(name + ".ram", "4096"));
-        ProcessBuilder pb = new ProcessBuilder(javaBin, "-Xmx" + ram + "M", "-Xms" + Math.max(512, ram / 2) + "M", "-jar", "server.jar", "--nogui");
-        pb.directory(dir.toFile());
-        pb.inheritIO();
-        Process p = pb.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                System.out.println("\nShutting down server...");
-                p.getOutputStream().write("stop\n".getBytes(StandardCharsets.UTF_8));
-                p.getOutputStream().flush();
-                p.waitFor();
-            } catch (Exception ignored) {}
-        }));
-        try {
-            p.waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     public LocalMJava() throws IOException {
         super("VoxelPort  v1.0.0");
         this.store = new ServerStore();
@@ -253,7 +194,7 @@ public class LocalMJava extends JFrame {
         roomCode.setEditable(false);
         joinAddress.setEditable(false);
 
-        // RAM slider – tick labels
+        // RAM slider - tick labels
         int sysRam = getSystemRamMb();
         ramSlider.setMajorTickSpacing(Math.max(1024, sysRam / 8));
         ramSlider.setPaintTicks(true);
@@ -315,12 +256,12 @@ public class LocalMJava extends JFrame {
     private JComponent buildUi() {
         JPanel root = new JPanel(new BorderLayout(0, 0));
 
-        // ── Header ────────────────────────────────────────────────────────────
+        // -- Header ------------------------------------------------------------
         JPanel header = new JPanel(new BorderLayout(12, 0));
         header.setBorder(new EmptyBorder(10, 16, 10, 16));
         header.setBackground(new Color(30, 32, 40));
 
-        JLabel title = new JLabel("⛏  VoxelPort");
+        JLabel title = new JLabel("VoxelPort");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         title.setForeground(new Color(100, 200, 255));
         header.add(title, BorderLayout.WEST);
@@ -328,7 +269,7 @@ public class LocalMJava extends JFrame {
         JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
         rightHeader.setOpaque(false);
         
-        JButton sponsorHeaderBtn = new JButton("💖 Sponsor");
+        JButton sponsorHeaderBtn = new JButton("Sponsor");
         sponsorHeaderBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         sponsorHeaderBtn.setForeground(new Color(216, 74, 123));
         sponsorHeaderBtn.setFocusPainted(false);
@@ -353,19 +294,19 @@ public class LocalMJava extends JFrame {
         header.add(rightHeader, BorderLayout.EAST);
         root.add(header, BorderLayout.NORTH);
 
-        // ── Tabs ──────────────────────────────────────────────────────────────
+        // -- Tabs --------------------------------------------------------------
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("🖥  Host",       hostPanel());
-        tabs.addTab("🔗  Join Room",  joinPanel());
-        tabs.addTab("⚙  Settings",   settingsPanel());
+        tabs.addTab("Host",       hostPanel());
+        tabs.addTab("Join Room",  joinPanel());
+        tabs.addTab("Settings",   settingsPanel());
         root.add(tabs, BorderLayout.CENTER);
 
-        // ── Status bar ────────────────────────────────────────────────────────
+        // -- Status bar --------------------------------------------------------
         JPanel statusBar = new JPanel(new BorderLayout());
-        statusBar.setBorder(new EmptyBorder(3, 10, 4, 10));
-        statusBar.setBackground(new Color(25, 27, 35));
-        status.setFont(status.getFont().deriveFont(11f));
-        status.setForeground(new Color(140, 160, 180));
+        statusBar.setBorder(new EmptyBorder(6, 12, 7, 12));
+        statusBar.setBackground(new Color(18, 24, 32));
+        status.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        status.setForeground(new Color(195, 216, 245));
         statusBar.add(status, BorderLayout.WEST);
         root.add(statusBar, BorderLayout.SOUTH);
 
@@ -379,7 +320,7 @@ public class LocalMJava extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(new EmptyBorder(8, 10, 8, 10));
 
-        // ── LEFT sidebar ──────────────────────────────────────────────────────
+        // -- LEFT sidebar ------------------------------------------------------
         JPanel left = new JPanel(new BorderLayout(0, 4));
         left.setPreferredSize(new Dimension(215, 0));
 
@@ -403,7 +344,7 @@ public class LocalMJava extends JFrame {
                 if (serverModel.isEmpty()) {
                     g.setFont(g.getFont().deriveFont(Font.ITALIC, 11f));
                     g.setColor(new Color(120, 120, 140));
-                    String msg = "No servers — click Install";
+                    String msg = "No servers - click Install";
                     FontMetrics fm = g.getFontMetrics();
                     g.drawString(msg, (getWidth() - fm.stringWidth(msg)) / 2, getHeight() / 2);
                 }
@@ -422,23 +363,23 @@ public class LocalMJava extends JFrame {
 
         // Right-click context menu
         JPopupMenu listCtx = new JPopupMenu();
-        JMenuItem ctxStart  = new JMenuItem("▶ Start");
-        JMenuItem ctxStop   = new JMenuItem("■ Stop");
-        JMenuItem ctxFolder = new JMenuItem("📂 Open Folder");
-        JMenuItem ctxMods   = new JMenuItem("🧩 Plugins & Mods");
-        JMenuItem ctxDelete = new JMenuItem("🗑 Delete");
+        JMenuItem ctxStart  = new JMenuItem("Start");
+        JMenuItem ctxStop   = new JMenuItem("Stop");
+        JMenuItem ctxFolder = new JMenuItem("Open Folder");
+        JMenuItem ctxMods   = new JMenuItem("Plugins & Mods");
+        JMenuItem ctxDelete = new JMenuItem("Delete");
         ctxStart.addActionListener(e  -> CompletableFuture.runAsync(() -> { try { startServer(); } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         ctxStop.addActionListener(e   -> CompletableFuture.runAsync(() -> { try { stopServer();  } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         ctxFolder.addActionListener(e -> CompletableFuture.runAsync(this::openServerFolder));
         ctxMods.addActionListener(e   -> openModManager());
-        ctxDelete.addActionListener(e -> CompletableFuture.runAsync(this::deleteServer));
+        ctxDelete.addActionListener(e -> runAsyncUi(this::deleteServer));
         listCtx.add(ctxStart); listCtx.add(ctxStop); listCtx.addSeparator();
         listCtx.add(ctxFolder); listCtx.add(ctxMods); listCtx.addSeparator();
         listCtx.add(ctxDelete);
         serverList.setComponentPopupMenu(listCtx);
 
         JButton create = colorBtn("+ Install New Server", new Color(40, 110, 180), Color.WHITE);
-        create.addActionListener(e -> CompletableFuture.runAsync(this::installServer));
+        create.addActionListener(e -> runAsyncUi(this::installServer));
         left.add(create, BorderLayout.SOUTH);
         panel.add(left, BorderLayout.WEST);
 
@@ -461,31 +402,31 @@ public class LocalMJava extends JFrame {
         
         // Primary: Start / Stop
         JPanel primary = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        JButton startBtn = colorBtn("▶  Start Server", new Color(34, 140, 60), Color.WHITE);
-        JButton stopBtn  = colorBtn("■  Stop Server",  new Color(180, 40, 40), Color.WHITE);
+        JButton startBtn = colorBtn("Start Server", new Color(34, 140, 60), Color.WHITE);
+        JButton stopBtn  = colorBtn("Stop Server",  new Color(180, 40, 40), Color.WHITE);
         startBtn.addActionListener(e -> CompletableFuture.runAsync(() -> { try { startServer(); } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         stopBtn.addActionListener(e  -> CompletableFuture.runAsync(() -> { try { stopServer();  } catch(Exception x){ SwingUtilities.invokeLater(()->showError(x)); } }));
         primary.add(startBtn); primary.add(stopBtn);
 
         // Secondary: tools
         JPanel secondary = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
-        secondary.add(button("🔄 Updates",    this::checkUpdates));
-        secondary.add(button("📂 Folder",     this::openServerFolder));
+        secondary.add(button("Updates",    this::checkUpdates));
+        secondary.add(button("Folder",     this::openServerFolder));
 
-        JButton modBtn = new JButton("🧩 Plugins & Mods");
+        JButton modBtn = new JButton("Plugins & Mods");
         modBtn.addActionListener(e -> openModManager());
         secondary.add(modBtn);
 
-        JButton propBtn = new JButton("⚙ Properties");
+        JButton propBtn = new JButton("Properties");
         propBtn.addActionListener(e -> openPropertiesEditor());
         secondary.add(propBtn);
 
-        JButton backupBtn = new JButton("💾 Backup...");
+        JButton backupBtn = new JButton("Backup...");
         backupBtn.addActionListener(e -> showBackupMenu(backupBtn));
         secondary.add(backupBtn);
 
-        JButton delBtn = colorBtn("🗑 Delete", new Color(120, 30, 30), Color.WHITE);
-        delBtn.addActionListener(e -> CompletableFuture.runAsync(this::deleteServer));
+        JButton delBtn = colorBtn("Delete", new Color(120, 30, 30), Color.WHITE);
+        delBtn.addActionListener(e -> runAsyncUi(this::deleteServer));
         secondary.add(delBtn);
 
         JPanel actions = new JPanel();
@@ -514,14 +455,23 @@ public class LocalMJava extends JFrame {
         consolePanel.setBorder(BorderFactory.createTitledBorder("Console"));
         
         console.setEditable(false);
-        console.setBackground(new Color(18, 18, 24));
-        console.setForeground(new Color(200, 210, 220));
-        console.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        console.setCaretColor(new Color(100, 220, 100));
+        console.setBackground(CONSOLE_BG);
+        console.setForeground(CONSOLE_FG);
+        console.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        console.setCaretColor(new Color(125, 211, 252));
+        console.setMargin(new Insets(8, 10, 8, 10));
         JScrollPane consoleScroll = new JScrollPane(console);
+        consoleScroll.setBorder(BorderFactory.createLineBorder(new Color(51, 65, 85)));
+        consoleScroll.getViewport().setBackground(CONSOLE_BG);
         consolePanel.add(consoleScroll, BorderLayout.CENTER);
 
-        consoleInput.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        consoleInput.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        consoleInput.setBackground(new Color(15, 23, 42));
+        consoleInput.setForeground(CONSOLE_FG);
+        consoleInput.setCaretColor(new Color(125, 211, 252));
+        consoleInput.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(51, 65, 85)),
+                new EmptyBorder(5, 8, 5, 8)));
         consoleInput.setToolTipText("Type a command and press Enter");
         consoleInput.addActionListener(e -> {
             String cmd = consoleInput.getText().trim();
@@ -598,9 +548,9 @@ public class LocalMJava extends JFrame {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Mod & Plugin Manager
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     private void openModManager() {
         String name;
@@ -616,14 +566,14 @@ public class LocalMJava extends JFrame {
         org.localm.service.ModrinthService.LoaderType loader =
                 org.localm.service.ModrinthService.detectLoader(serverDir);
 
-        // ── Dialog shell ───────────────────────────────────────────────────
+        // -- Dialog shell ---------------------------------------------------
         JDialog dialog = new JDialog(this,
-                "Plugins & Mods  —  " + name + "  [" + loader.displayName() + "]", true);
+                "Plugins & Mods  -  " + name + "  [" + loader.displayName() + "]", true);
         dialog.setSize(820, 600);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new BorderLayout(8, 8));
 
-        // ── Header bar ────────────────────────────────────────────────────
+        // -- Header bar ----------------------------------------------------
         JPanel header = new JPanel(new BorderLayout(8, 4));
         header.setBorder(new EmptyBorder(10, 12, 6, 12));
 
@@ -634,7 +584,7 @@ public class LocalMJava extends JFrame {
 
         JTextField searchField = new JTextField();
         searchField.setToolTipText("Search Modrinth...");
-        JButton searchBtn = new JButton("🔍 Search");
+        JButton searchBtn = new JButton("Search");
 
         JPanel searchBar = new JPanel(new BorderLayout(5, 0));
         searchBar.add(searchField, BorderLayout.CENTER);
@@ -643,12 +593,12 @@ public class LocalMJava extends JFrame {
 
         dialog.add(header, BorderLayout.NORTH);
 
-        // ── Split pane: left = search results, right = installed ───────────
+        // -- Split pane: left = search results, right = installed -----------
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         split.setDividerLocation(480);
         split.setResizeWeight(0.6);
 
-        // LEFT – Search results ────────────────────────────────────────────
+        // LEFT - Search results --------------------------------------------
         DefaultListModel<ModrinthProject> resultModel = new DefaultListModel<>();
         JList<ModrinthProject> resultList = new JList<>(resultModel);
         resultList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -682,7 +632,7 @@ public class LocalMJava extends JFrame {
 
         split.setLeftComponent(leftPanel);
 
-        // RIGHT – Installed jars ───────────────────────────────────────────
+        // RIGHT - Installed jars -------------------------------------------
         DefaultListModel<Path> installedModel = new DefaultListModel<>();
         JList<Path> installedList = new JList<>(installedModel);
         installedList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -693,9 +643,9 @@ public class LocalMJava extends JFrame {
                 "Installed " + capitalize(loader.folder)));
         rightPanel.add(new JScrollPane(installedList), BorderLayout.CENTER);
 
-        JButton deleteBtn  = new JButton("🗑 Delete");
-        JButton openDirBtn = new JButton("📂 Open Folder");
-        JButton refreshBtn = new JButton("↻");
+        JButton deleteBtn  = new JButton("Delete");
+        JButton openDirBtn = new JButton("Open Folder");
+        JButton refreshBtn = new JButton("Refresh");
         refreshBtn.setToolTipText("Refresh installed list");
 
         JPanel rightBtns = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
@@ -707,13 +657,13 @@ public class LocalMJava extends JFrame {
 
         dialog.add(split, BorderLayout.CENTER);
 
-        // ── Bottom status / progress bar ───────────────────────────────────
+        // -- Bottom status / progress bar -----------------------------------
         JProgressBar progress = new JProgressBar();
         progress.setStringPainted(true);
         progress.setString("Ready");
         progress.setVisible(false);
 
-        JButton installBtn = new JButton("⬇ Install Selected");
+        JButton installBtn = new JButton("Install Selected");
         installBtn.setFont(installBtn.getFont().deriveFont(Font.BOLD));
         installBtn.setBackground(new Color(50, 150, 80));
         installBtn.setForeground(Color.WHITE);
@@ -725,7 +675,7 @@ public class LocalMJava extends JFrame {
         bottom.add(installBtn,  BorderLayout.EAST);
         dialog.add(bottom, BorderLayout.SOUTH);
 
-        // ── Helpers ───────────────────────────────────────────────────────
+        // -- Helpers -------------------------------------------------------
         Runnable reloadInstalled = () -> {
             List<Path> jars = modrinthService.listInstalled(serverDir, loader);
             SwingUtilities.invokeLater(() -> {
@@ -735,7 +685,7 @@ public class LocalMJava extends JFrame {
         };
         reloadInstalled.run();
 
-        // ── Search action ─────────────────────────────────────────────────
+        // -- Search action -------------------------------------------------
         Runnable doSearch = () -> {
             String query = searchField.getText().trim();
             if (query.isEmpty()) return;
@@ -767,7 +717,7 @@ public class LocalMJava extends JFrame {
         searchField.addActionListener(e -> doSearch.run());
         searchBtn.addActionListener(e -> doSearch.run());
 
-        // ── Install action ────────────────────────────────────────────────
+        // -- Install action ------------------------------------------------
         installBtn.addActionListener(e -> {
             ModrinthProject selected = resultList.getSelectedValue();
             if (selected == null) {
@@ -802,7 +752,7 @@ public class LocalMJava extends JFrame {
 
                     SwingUtilities.invokeLater(() -> {
                         progress.setIndeterminate(false);
-                        progress.setString("Installed " + selected.title() + " ✓");
+                        progress.setString("Installed " + selected.title() + " OK");
                         installBtn.setEnabled(true);
                         setStatus("Installed " + selected.title());
                         reloadInstalled.run();
@@ -817,7 +767,7 @@ public class LocalMJava extends JFrame {
             });
         });
 
-        // ── Delete installed jar ──────────────────────────────────────────
+        // -- Delete installed jar ------------------------------------------
         deleteBtn.addActionListener(e -> {
             Path jar = installedList.getSelectedValue();
             if (jar == null) return;
@@ -834,7 +784,7 @@ public class LocalMJava extends JFrame {
             }
         });
 
-        // ── Open installed folder ─────────────────────────────────────────
+        // -- Open installed folder -----------------------------------------
         openDirBtn.addActionListener(e -> {
             Path dir = serverDir.resolve(loader.folder);
             try { Files.createDirectories(dir); } catch (IOException ignored) {}
@@ -903,22 +853,73 @@ public class LocalMJava extends JFrame {
 
     private JComponent joinPanel() {
         JPanel wrapper = new JPanel(new GridBagLayout());
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder("Join A VoxelPort Room"));
-        panel.setPreferredSize(new Dimension(500, 300));
-        
-        panel.add(formRow("Room Code", joinCode));
-        
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-        buttons.add(button("Connect", this::startJoinProxy));
-        buttons.add(button("Disconnect", this::stopJoinProxy));
+        wrapper.setBorder(new EmptyBorder(24, 24, 24, 24));
+
+        JPanel panel = new JPanel(new BorderLayout(12, 12));
+        panel.setPreferredSize(new Dimension(650, 360));
+
+        JPanel header = new JPanel(new BorderLayout(8, 0));
+        JLabel title = new JLabel("Join Room");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
+        title.setForeground(new Color(100, 200, 255));
+        header.add(title, BorderLayout.WEST);
+
+        joinState.setOpaque(true);
+        joinState.setHorizontalAlignment(SwingConstants.CENTER);
+        joinState.setBorder(new EmptyBorder(5, 10, 5, 10));
+        setJoinState("Disconnected", new Color(64, 70, 82), new Color(220, 225, 235));
+        header.add(joinState, BorderLayout.EAST);
+        panel.add(header, BorderLayout.NORTH);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(70, 78, 90)),
+                new EmptyBorder(18, 18, 18, 18)));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(0, 0, 8, 0);
+
+        JLabel codeLabel = new JLabel("Room Code");
+        codeLabel.setFont(codeLabel.getFont().deriveFont(Font.BOLD, 12f));
+        form.add(codeLabel, gbc);
+
+        gbc.gridy++;
+        joinCode.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        joinCode.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(80, 120, 170)),
+                new EmptyBorder(7, 8, 7, 8)));
+        joinCode.addActionListener(e -> runAsyncUi(this::startJoinProxy));
+        form.add(joinCode, gbc);
+
+        gbc.gridy++;
+        gbc.insets = new Insets(8, 0, 18, 0);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        buttons.add(colorBtn("Connect", new Color(34, 140, 60), Color.WHITE, this::startJoinProxy));
+        buttons.add(colorBtn("Disconnect", new Color(85, 92, 105), Color.WHITE, this::stopJoinProxy));
         buttons.add(button("Copy Address", () -> copy(joinAddress.getText())));
-        panel.add(buttons);
-        
+        form.add(buttons, gbc);
+
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 8, 0);
+        JLabel addressLabel = new JLabel("Minecraft Address");
+        addressLabel.setFont(addressLabel.getFont().deriveFont(Font.BOLD, 12f));
+        form.add(addressLabel, gbc);
+
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 0, 0);
         joinAddress.setEditable(false);
-        panel.add(formRow("Minecraft Address", joinAddress));
-        
+        joinAddress.setFont(new Font(Font.MONOSPACED, Font.BOLD, 18));
+        joinAddress.setBackground(new Color(15, 23, 42));
+        joinAddress.setForeground(new Color(187, 247, 208));
+        joinAddress.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(51, 65, 85)),
+                new EmptyBorder(10, 10, 10, 10)));
+        form.add(joinAddress, gbc);
+
+        panel.add(form, BorderLayout.CENTER);
         wrapper.add(panel);
         return wrapper;
     }
@@ -927,15 +928,15 @@ public class LocalMJava extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("System & App Info"));
 
-        // ── App Info ──────────────────────────────────────────────────────────
+        // -- App Info ----------------------------------------------------------
         String appVersion = "1.0.0";
         Path dataDir = store.getDataDir();
 
-        // ── JVM heap snapshot ────────────────────────────────────────────────
+        // -- JVM heap snapshot ------------------------------------------------
         long heapUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         long heapMax  = Runtime.getRuntime().maxMemory();
 
-        // ── Physical system memory via OperatingSystemMXBean ─────────────────
+        // -- Physical system memory via OperatingSystemMXBean -----------------
         long totalPhysicalRam = -1;
         long freePhysicalRam  = -1;
         try {
@@ -951,7 +952,7 @@ public class LocalMJava extends JFrame {
               + " used / " + formatBytes(totalPhysicalRam) + " total"
             : "unavailable";
 
-        // ── Disk space for data folder ────────────────────────────────────────
+        // -- Disk space for data folder ----------------------------------------
         String diskLine;
         try {
             java.io.File root = dataDir.toFile();
@@ -962,7 +963,7 @@ public class LocalMJava extends JFrame {
             diskLine = "unavailable";
         }
 
-        // ── Hostname ──────────────────────────────────────────────────────────
+        // -- Hostname ----------------------------------------------------------
         String hostname;
         try {
             hostname = java.net.InetAddress.getLocalHost().getHostName();
@@ -971,15 +972,15 @@ public class LocalMJava extends JFrame {
         }
 
         String infoText = """
-                ╔══════════════════════════════════════╗
+                +======================================+
                   VoxelPort  v%s
-                ╚══════════════════════════════════════╝
+                +======================================+
 
-                ── APP INFO ───────────────────────────
+                -- APP INFO ---------------------------
                 Version      : %s
                 Data Folder  : %s
 
-                ── SYSTEM INFO ────────────────────────
+                -- SYSTEM INFO ------------------------
                 Hostname     : %s
                 OS           : %s  %s
                 Architecture : %s
@@ -988,7 +989,7 @@ public class LocalMJava extends JFrame {
                 JVM Heap     : %s used / %s max
                 Disk (data)  : %s
 
-                ── JAVA RUNTIME ───────────────────────
+                -- JAVA RUNTIME -----------------------
                 Java Version : %s
                 Vendor       : %s
                 JVM Home     : %s
@@ -1029,7 +1030,7 @@ public class LocalMJava extends JFrame {
         JButton openData = new JButton("Open Data Folder");
         openData.addActionListener(e -> CompletableFuture.runAsync(() -> open(store.getDataDir())));
         
-        JButton sponsorBtn = new JButton("💖 Sponsor");
+        JButton sponsorBtn = new JButton("Sponsor");
         sponsorBtn.setForeground(new Color(216, 74, 123));
         sponsorBtn.addActionListener(e -> {
             try {
@@ -1065,13 +1066,7 @@ public class LocalMJava extends JFrame {
 
     private JButton button(String text, Runnable action) {
         JButton b = new JButton(text);
-        b.addActionListener(e -> CompletableFuture.runAsync(() -> {
-            try {
-                action.run();
-            } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> showError(ex));
-            }
-        }));
+        b.addActionListener(e -> runAsyncUi(action));
         return b;
     }
 
@@ -1085,6 +1080,22 @@ public class LocalMJava extends JFrame {
         return b;
     }
 
+    private JButton colorBtn(String text, Color bg, Color fg, Runnable action) {
+        JButton b = colorBtn(text, bg, fg);
+        b.addActionListener(e -> runAsyncUi(action));
+        return b;
+    }
+
+    private void runAsyncUi(Runnable action) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                action.run();
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() -> showError(ex));
+            }
+        });
+    }
+
     private void checkUpdates() {
         String name = selectedServer();
         String mcVersion = store.getProperty(name + ".version");
@@ -1096,10 +1107,7 @@ public class LocalMJava extends JFrame {
                 String latestUrl = null;
                 if (mcVersion != null) {
                     try {
-                        String paper = versionService.httpGet("https://api.papermc.io/v2/projects/paper/versions/" + mcVersion + "/builds");
-                        String build = lastNumber(paper, "\"build\"\\s*:\\s*(\\d+)");
-                        String file = last(paper, "\"name\"\\s*:\\s*\"([^\"]+\\.jar)\"");
-                        if (build != null && file != null) latestUrl = "https://api.papermc.io/v2/projects/paper/versions/" + mcVersion + "/builds/" + build + "/downloads/" + file;
+                        latestUrl = versionService.latestPaperDownloadUrl(mcVersion);
                     } catch (Exception ignored) {}
 
                     if (latestUrl == null) {
@@ -1149,27 +1157,19 @@ public class LocalMJava extends JFrame {
         });
     }
 
-    private String last(String input, String regex) {
-        Matcher matcher = Pattern.compile(regex).matcher(input);
-        String last = null;
-        while (matcher.find()) last = matcher.group(1);
-        return last;
-    }
-
-    private String lastNumber(String input, String regex) {
-        Matcher matcher = Pattern.compile(regex).matcher(input);
-        String last = null;
-        while (matcher.find()) last = matcher.group(1);
-        return last;
-    }
-
     private void installServer() {
         ServerVersion version = (ServerVersion) versionBox.getSelectedItem();
-        if (version == null) throw new IllegalStateException("No server version selected");
+        if (version == null) {
+            throw new IllegalStateException("No server version selected. Wait for versions to load, then try again.");
+        }
         String name = cleanName(serverName.getText());
 
+        setStatus("Choose an install folder for " + name + "...");
         Path parentDir = chooseParentInstallDirectory(name);
-        if (parentDir == null) return;
+        if (parentDir == null) {
+            setStatus("Install cancelled");
+            return;
+        }
         Path dir = parentDir.resolve(name);
         try {
             Files.createDirectories(dir);
@@ -1338,9 +1338,9 @@ public class LocalMJava extends JFrame {
             int lastIdx = 0;
             Matcher m = Pattern.compile("\u001B\\[([;\\d]*)m").matcher(text);
             SimpleAttributeSet style = new SimpleAttributeSet();
-            StyleConstants.setForeground(style, new Color(200, 210, 220));
+            StyleConstants.setForeground(style, CONSOLE_FG);
             StyleConstants.setFontFamily(style, Font.MONOSPACED);
-            StyleConstants.setFontSize(style, 12);
+            StyleConstants.setFontSize(style, 13);
 
             while (m.find()) {
                 String segment = text.substring(lastIdx, m.start());
@@ -1351,15 +1351,15 @@ public class LocalMJava extends JFrame {
                 String params = m.group(1);
                 if (params == null || params.isEmpty() || "0".equals(params)) {
                     style = new SimpleAttributeSet();
-                    StyleConstants.setForeground(style, Color.BLACK);
+                    StyleConstants.setForeground(style, CONSOLE_FG);
                     StyleConstants.setFontFamily(style, Font.MONOSPACED);
-                    StyleConstants.setFontSize(style, 12);
+                    StyleConstants.setFontSize(style, 13);
                 } else {
                     for (String part : params.split(";")) {
                         if (part.isEmpty()) continue;
                         int code = Integer.parseInt(part);
                         if (code == 0) {
-                            StyleConstants.setForeground(style, Color.BLACK);
+                            StyleConstants.setForeground(style, CONSOLE_FG);
                             StyleConstants.setBold(style, false);
                         } else if (code == 1) {
                             StyleConstants.setBold(style, true);
@@ -1384,23 +1384,23 @@ public class LocalMJava extends JFrame {
 
     private Color getAnsiColor(int code) {
         return switch (code) {
-            case 30 -> Color.BLACK;
-            case 31 -> new Color(178, 34, 34);
-            case 32 -> new Color(34, 139, 34);
-            case 33 -> new Color(184, 134, 11);
-            case 34 -> new Color(0, 0, 139);
-            case 35 -> new Color(139, 0, 139);
-            case 36 -> new Color(0, 139, 139);
-            case 37 -> Color.DARK_GRAY;
-            case 90 -> Color.GRAY;
-            case 91 -> Color.RED;
-            case 92 -> new Color(50, 205, 50);
-            case 93 -> new Color(218, 165, 32);
-            case 94 -> Color.BLUE;
-            case 95 -> Color.MAGENTA;
-            case 96 -> Color.CYAN;
-            case 97 -> Color.LIGHT_GRAY;
-            default -> Color.BLACK;
+            case 30 -> CONSOLE_MUTED;
+            case 31 -> new Color(248, 113, 113);
+            case 32 -> new Color(134, 239, 172);
+            case 33 -> new Color(253, 224, 71);
+            case 34 -> new Color(147, 197, 253);
+            case 35 -> new Color(216, 180, 254);
+            case 36 -> new Color(103, 232, 249);
+            case 37 -> CONSOLE_FG;
+            case 90 -> new Color(148, 163, 184);
+            case 91 -> new Color(252, 165, 165);
+            case 92 -> new Color(187, 247, 208);
+            case 93 -> new Color(254, 240, 138);
+            case 94 -> new Color(191, 219, 254);
+            case 95 -> new Color(233, 213, 255);
+            case 96 -> new Color(165, 243, 252);
+            case 97 -> Color.WHITE;
+            default -> CONSOLE_FG;
         };
     }
 
@@ -1477,15 +1477,23 @@ public class LocalMJava extends JFrame {
 
     private void startJoinProxy() {
         try {
+            if (joinCode.getText().trim().isEmpty()) {
+                throw new IllegalArgumentException("Enter a room code first");
+            }
+            setJoinState("Connecting", new Color(120, 85, 25), new Color(255, 235, 180));
             tunnelService.startJoinProxy(joinCode.getText().trim(), 25565, this::setStatus);
             joinAddress.setText("localhost:25565");
+            setJoinState("Connected", new Color(25, 110, 65), new Color(220, 255, 235));
         } catch (Exception e) {
+            setJoinState("Disconnected", new Color(64, 70, 82), new Color(220, 225, 235));
             throw new RuntimeException(e);
         }
     }
 
     private void stopJoinProxy() {
         tunnelService.stopJoinProxy();
+        setJoinState("Disconnected", new Color(64, 70, 82), new Color(220, 225, 235));
+        setStatus("Join proxy stopped");
     }
 
     private void refreshServerList() {
@@ -1560,8 +1568,46 @@ public class LocalMJava extends JFrame {
         SwingUtilities.invokeLater(() -> status.setText(message));
     }
 
+    private void setJoinState(String message, Color bg, Color fg) {
+        SwingUtilities.invokeLater(() -> {
+            joinState.setText(message);
+            joinState.setBackground(bg);
+            joinState.setForeground(fg);
+        });
+    }
+
     private void showError(Throwable error) {
-        JOptionPane.showMessageDialog(this, error.getMessage(), "VoxelPort", JOptionPane.ERROR_MESSAGE);
+        String text = errorText(error);
+        JTextArea details = new JTextArea(text, 6, 64);
+        details.setEditable(false);
+        details.setLineWrap(true);
+        details.setWrapStyleWord(true);
+        details.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        details.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JButton copy = new JButton("Copy Error");
+        copy.addActionListener(e -> {
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
+            setStatus("Error copied");
+        });
+
+        Object[] options = {copy, "OK"};
+        JOptionPane.showOptionDialog(
+                this,
+                new JScrollPane(details),
+                "VoxelPort Error",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.ERROR_MESSAGE,
+                null,
+                options,
+                "OK");
         setStatus("Error: " + error.getMessage());
     }
+
+    private String errorText(Throwable error) {
+        StringWriter out = new StringWriter();
+        error.printStackTrace(new PrintWriter(out));
+        return out.toString();
+    }
 }
+

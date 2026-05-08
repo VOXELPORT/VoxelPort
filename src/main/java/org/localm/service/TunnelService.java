@@ -1,18 +1,13 @@
 package org.localm.service;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.HexFormat;
+import java.util.Base64;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -41,7 +36,7 @@ public class TunnelService {
                 while ((line = r.readLine()) != null) {
                     Matcher m = urlPattern.matcher(line);
                     if (m.find()) {
-                        String code = encrypt(m.group());
+                        String code = encodeRoomUrl(m.group());
                         codeConsumer.accept(code);
                         statusConsumer.accept("Room ready");
                     }
@@ -60,7 +55,7 @@ public class TunnelService {
 
     public void startJoinProxy(String code, int localPort, Consumer<String> statusConsumer) throws Exception {
         stopJoinProxy();
-        String url = decrypt(code.trim());
+        String url = decodeRoomUrl(code.trim());
         String host = URI.create(url).getHost();
         int bridgePort = freePort();
         accessProcess = new ProcessBuilder(daemonPath().toString(), "access", "tcp", "--hostname", host, "--url", "127.0.0.1:" + bridgePort).start();
@@ -103,8 +98,8 @@ public class TunnelService {
     }
 
     private Path daemonPath() {
-        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        String binName = osName.contains("win") ? "tunnel-daemon.exe" : "tunnel-daemon";
+        Platform platform = detectPlatform();
+        String binName = platform.localFileName();
         
         Path dev = Path.of("bin", binName).toAbsolutePath();
         if (Files.exists(dev)) return dev;
@@ -112,7 +107,7 @@ public class TunnelService {
         if (Files.exists(app)) return app;
         Path managed = managedToolsDir().resolve(binName);
         if (Files.exists(managed)) return managed;
-        downloadTunnelDaemon(managed);
+        downloadTunnelDaemon(managed, platform);
         return managed;
     }
 
@@ -130,42 +125,68 @@ public class TunnelService {
         return dir;
     }
 
-    private void downloadTunnelDaemon(Path target) {
-        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
-        
-        String cfOs = "windows";
-        String cfArch = "amd64";
-        String ext = ".exe";
-        
-        if (osName.contains("mac")) {
-            cfOs = "darwin";
-            ext = "";
-        } else if (osName.contains("linux")) {
-            cfOs = "linux";
-            ext = "";
-        }
-        
-        if (arch.contains("aarch64") || arch.contains("arm64")) {
-            cfArch = "arm64";
-        }
-        
-        String url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-" + cfOs + "-" + cfArch + ext;
-        if (cfOs.equals("darwin") && cfArch.equals("arm64")) {
-            // Cloudflare doesn't natively publish a cloudflared-darwin-arm64 directly without a tgz, but darwin-amd64 works via Rosetta or some custom URLs exist. We will fall back to amd64 for darwin just in case, but let's try the direct binary first.
-        }
+    private void downloadTunnelDaemon(Path target, Platform platform) {
+        String url = "https://github.com/cloudflare/cloudflared/releases/latest/download/" + platform.assetName();
 
         try {
-            Path temp = Files.createTempFile("voxelport-cloudflared-", ext);
+            Files.createDirectories(target.getParent());
+            Path temp = Files.createTempFile("voxelport-cloudflared-", platform.downloadExtension());
             try (InputStream in = URI.create(url).toURL().openStream()) {
                 Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
             }
-            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-            if (!osName.contains("win")) {
+            if (platform.isArchive()) {
+                extractCloudflaredArchive(temp, target);
+                Files.deleteIfExists(temp);
+            } else {
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (!platform.isWindows()) {
                 target.toFile().setExecutable(true);
             }
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to download tunnel-daemon.exe automatically", e);
+            throw new IllegalStateException("Failed to download Cloudflare tunnel daemon for "
+                    + platform.cloudflareOs() + "/" + platform.cloudflareArch(), e);
+        }
+    }
+
+    private void extractCloudflaredArchive(Path archive, Path target) throws IOException {
+        Path extractDir = Files.createTempDirectory("voxelport-cloudflared-");
+        try {
+            Process p = new ProcessBuilder("tar", "-xzf", archive.toAbsolutePath().toString(), "-C", extractDir.toAbsolutePath().toString())
+                    .redirectErrorStream(true)
+                    .start();
+            try {
+                if (p.waitFor() != 0) {
+                    throw new IOException("tar failed while extracting Cloudflare tunnel daemon");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Cloudflare tunnel daemon extraction interrupted", e);
+            }
+
+            try (var walk = Files.walk(extractDir)) {
+                Path binary = walk
+                        .filter(Files::isRegularFile)
+                        .filter(candidate -> candidate.getFileName().toString().equals("cloudflared"))
+                        .findFirst()
+                        .orElseThrow(() -> new IOException("cloudflared binary not found in archive"));
+                Files.move(binary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            deleteDirectory(extractDir);
+        }
+    }
+
+    private void deleteDirectory(Path dir) throws IOException {
+        if (!Files.exists(dir)) return;
+        try (var walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
         }
     }
 
@@ -175,32 +196,69 @@ public class TunnelService {
         }
     }
 
-    private byte[] key() throws Exception {
-        return MessageDigest.getInstance("SHA-256").digest("localm-tunnel-v1".getBytes(StandardCharsets.UTF_8));
+    private String encodeRoomUrl(String url) {
+        return "VP1-" + Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(url.getBytes(StandardCharsets.UTF_8));
     }
 
-    private String encrypt(String url) throws Exception {
-        byte[] iv = new byte[12];
-        new SecureRandom().nextBytes(iv);
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key(), "AES"), new GCMParameterSpec(128, iv));
-        byte[] encrypted = cipher.doFinal(url.getBytes(StandardCharsets.UTF_8));
-        byte[] out = new byte[iv.length + encrypted.length];
-        System.arraycopy(iv, 0, out, 0, iv.length);
-        System.arraycopy(encrypted, 0, out, iv.length, encrypted.length);
-        return HexFormat.of().formatHex(out).toUpperCase(Locale.ROOT);
-    }
-
-    private String decrypt(String code) throws Exception {
-        byte[] raw = HexFormat.of().parseHex(code);
-        byte[] iv = Arrays.copyOfRange(raw, 0, 12);
-        byte[] encrypted = Arrays.copyOfRange(raw, 12, raw.length);
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key(), "AES"), new GCMParameterSpec(128, iv));
-        return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+    private String decodeRoomUrl(String code) {
+        String value = code == null ? "" : code.trim();
+        if (!value.startsWith("VP1-")) {
+            throw new IllegalArgumentException("Invalid room code");
+        }
+        byte[] raw = Base64.getUrlDecoder().decode(value.substring(4));
+        String url = new String(raw, StandardCharsets.UTF_8);
+        if (!url.startsWith("https://") || URI.create(url).getHost() == null) {
+            throw new IllegalArgumentException("Invalid room code");
+        }
+        return url;
     }
 
     private void closeQuiet(Closeable closeable) {
         try { if (closeable != null) closeable.close(); } catch (IOException ignored) {}
+    }
+
+    private Platform detectPlatform() {
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String archName = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+
+        String os;
+        boolean windows = false;
+        if (osName.contains("win")) {
+            os = "windows";
+            windows = true;
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
+            os = "darwin";
+        } else if (osName.contains("linux")) {
+            os = "linux";
+        } else {
+            throw new IllegalStateException("Unsupported OS for Cloudflare tunnel daemon: " + osName);
+        }
+
+        String arch = (archName.contains("aarch64") || archName.contains("arm64")) ? "arm64" : "amd64";
+        return new Platform(os, arch, windows);
+    }
+
+    private record Platform(String cloudflareOs, String cloudflareArch, boolean isWindows) {
+        boolean isArchive() {
+            return cloudflareOs.equals("darwin");
+        }
+
+        String extension() {
+            return isWindows ? ".exe" : "";
+        }
+
+        String downloadExtension() {
+            return isArchive() ? ".tgz" : extension();
+        }
+
+        String assetName() {
+            return "cloudflared-" + cloudflareOs + "-" + cloudflareArch + downloadExtension();
+        }
+
+        String localFileName() {
+            return "cloudflared-" + cloudflareOs + "-" + cloudflareArch + extension();
+        }
     }
 }

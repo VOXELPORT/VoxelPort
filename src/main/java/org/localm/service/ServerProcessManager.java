@@ -10,9 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -93,7 +95,35 @@ public class ServerProcessManager {
     }
 
     public void stopAll() {
-        activeServers.keySet().forEach(this::stopServer);
+        stopAll(Duration.ofSeconds(20));
+    }
+
+    public void stopAll(Duration timeout) {
+        List<Process> processes = new ArrayList<>();
+        activeServers.forEach((name, process) -> {
+            if (process.isAlive()) {
+                stopServer(name);
+                processes.add(process);
+            }
+        });
+
+        long deadline = System.nanoTime() + timeout.toNanos();
+        for (Process process : processes) {
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) break;
+            try {
+                process.waitFor(remainingNanos, TimeUnit.NANOSECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        activeServers.forEach((name, process) -> {
+            if (process.isAlive()) {
+                process.destroyForcibly();
+            }
+        });
     }
 
     public boolean isAlive(String name) {

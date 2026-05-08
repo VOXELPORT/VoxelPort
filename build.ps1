@@ -5,17 +5,24 @@ $build   = Join-Path $root "build"
 $classes = Join-Path $build "classes"
 $input   = Join-Path $build "input"
 $dist    = Join-Path $root "dist"
-$jar     = Join-Path $input "VoxelPort.jar"
+$jar     = Join-Path $dist "VoxelPort.jar"
 $lib     = Join-Path $root "lib"
-$appImageDir = Join-Path $dist "VoxelPort"
-$zipPath     = Join-Path $dist "VoxelPort-1.0.0-windows-x64.zip"
+$zipPath = Join-Path $dist "VoxelPort-1.0.0-portable.zip"
 
-Remove-Item -LiteralPath $build,$dist -Recurse -Force -ErrorAction SilentlyContinue
+foreach ($path in @($build, $dist)) {
+    if (Test-Path $path) {
+        Get-ChildItem -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.Attributes = 'Normal' }
+        Get-ChildItem -LiteralPath $path -Force -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force -ErrorAction Stop
+    } else {
+        New-Item -ItemType Directory -Force $path | Out-Null
+    }
+}
 New-Item -ItemType Directory -Force $classes | Out-Null
 New-Item -ItemType Directory -Force $input   | Out-Null
 New-Item -ItemType Directory -Force $dist    | Out-Null
 
-# Collect all library jars for classpath
 $libJars = (Get-ChildItem -Path $lib -Filter "*.jar" -ErrorAction SilentlyContinue |
             Select-Object -ExpandProperty FullName) -join ";"
 
@@ -28,8 +35,9 @@ if ($libJars) {
 } else {
     javac --release 17 -encoding UTF-8 --add-modules $addMods -d $classes $sources
 }
+if ($LASTEXITCODE -ne 0) { throw "javac failed with exit code $LASTEXITCODE" }
 
-# Build fat-jar: unpack libs first then add our classes on top
+# Build a portable fat JAR: unpack third-party jars first, then add app classes.
 if ($libJars) {
     $libJarList = Get-ChildItem -Path $lib -Filter "*.jar" -ErrorAction SilentlyContinue
     foreach ($lj in $libJarList) {
@@ -37,8 +45,8 @@ if ($libJars) {
         New-Item -ItemType Directory -Force $extractDir | Out-Null
         Push-Location $extractDir
         jar xf $lj.FullName
+        if ($LASTEXITCODE -ne 0) { throw "jar extraction failed for $($lj.FullName)" }
         Pop-Location
-        # Merge into classes (skip META-INF manifest)
         Get-ChildItem -Path $extractDir -Recurse -File |
             Where-Object { $_.FullName -notmatch "META-INF[/\\]MANIFEST" -and $_.Name -ne "module-info.class" } |
             ForEach-Object {
@@ -51,31 +59,18 @@ if ($libJars) {
 }
 
 jar --create --file $jar --main-class org.localm.LocalMJava -C $classes .
-
-$runtimeImage = Join-Path $build "runtime"
-jlink --add-modules java.desktop,java.net.http,java.logging,java.management,jdk.management,jdk.crypto.ec,jdk.zipfs `
-      --output $runtimeImage --strip-debug --no-header-files --no-man-pages
-
-# Bundle required tools into the jpackage input so installer includes them.
-Copy-Item -LiteralPath (Join-Path $root "bin") -Destination $input -Recurse -Force
-
-jpackage `
-  --type app-image `
-  --name "VoxelPort" `
-  --input $input `
-  --main-jar "VoxelPort.jar" `
-  --main-class "org.localm.LocalMJava" `
-  --runtime-image $runtimeImage `
-  --dest $dist `
-  --app-version "1.0.0" `
-  --vendor "VoxelPort"
+if ($LASTEXITCODE -ne 0) { throw "jar creation failed with exit code $LASTEXITCODE" }
 
 if (Test-Path $zipPath) {
-  Remove-Item -LiteralPath $zipPath -Force
+    Remove-Item -LiteralPath $zipPath -Force
 }
-Compress-Archive -Path (Join-Path $appImageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+Compress-Archive -Path $jar -DestinationPath $zipPath -CompressionLevel Optimal -Force
 
-Write-Host "Built app image:"
-Write-Host (Join-Path $appImageDir "VoxelPort.exe")
+Write-Host "Built portable JAR:"
+Write-Host $jar
+Write-Host ""
+Write-Host "Run with:"
+Write-Host "java -jar `"$jar`""
+Write-Host ""
 Write-Host "Built release zip:"
 Write-Host $zipPath

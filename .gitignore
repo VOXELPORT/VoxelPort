@@ -21,6 +21,7 @@ Thumbs.db
 # Logs
 *.log
 store/logs/
+store/
 
 # Keep the lib/ folder (contains flatlaf jar needed for build)
 !lib/

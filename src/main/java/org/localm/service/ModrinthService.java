@@ -1,6 +1,7 @@
 package org.localm.service;
 
 import org.localm.model.ModrinthProject;
+import org.localm.util.SimpleJson;
 
 import java.io.IOException;
 import java.net.URI;
@@ -8,8 +9,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -18,10 +17,10 @@ import java.net.http.HttpResponse;
  * Modrinth API v2 service.
  *
  * Loader detection order (auto):
- *   Paper / Purpur / Spigot / Bukkit  → "paper"  (plugin folder)
- *   Fabric                            → "fabric"
- *   Forge                             → "forge"
- *   NeoForge                          → "neoforge"
+ *   Paper / Purpur / Spigot / Bukkit  -> "paper"  (plugin folder)
+ *   Fabric                            -> "fabric"
+ *   Forge                             -> "forge"
+ *   NeoForge                          -> "neoforge"
  */
 public class ModrinthService {
 
@@ -30,9 +29,9 @@ public class ModrinthService {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Loader detection
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public enum LoaderType {
         PAPER("paper", "plugin", "plugins"),
@@ -102,9 +101,9 @@ public class ModrinthService {
         return LoaderType.UNKNOWN;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Installed jar listing
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     /**
      * List all .jar files in the appropriate sub-folder (plugins/ or mods/).
@@ -123,9 +122,9 @@ public class ModrinthService {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Search
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     /**
      * Search Modrinth for plugins or mods, optionally filtered by MC version.
@@ -151,31 +150,21 @@ public class ModrinthService {
         String json = get(url);
 
         List<ModrinthProject> projects = new ArrayList<>();
-        // Each hit object starts with "project_id"
-        Matcher m = Pattern.compile(
-                "\"project_id\"\\s*:\\s*\"([^\"]+)\"[^}]*?" +
-                "\"slug\"\\s*:\\s*\"([^\"]+)\"[^}]*?" +
-                "\"author\"\\s*:\\s*\"([^\"]+)\"[^}]*?" +
-                "\"title\"\\s*:\\s*\"([^\"]+)\"[^}]*?" +
-                "\"description\"\\s*:\\s*\"([^\"]+)\"[^}]*?" +
-                "\"downloads\"\\s*:\\s*(\\d+)"
-        ).matcher(json);
-
-        while (m.find()) {
-            // Extract optional icon_url that may appear before or after; simple search around match
-            long dl = 0;
-            try { dl = Long.parseLong(m.group(6)); } catch (Exception ignored) {}
-
-            // Try to find icon_url near this hit
-            String iconUrl = null;
-            int hitStart = m.start();
-            int hitEnd   = Math.min(json.length(), m.end() + 200);
-            Matcher icon = Pattern.compile("\"icon_url\"\\s*:\\s*\"([^\"]+)\"")
-                    .matcher(json.substring(Math.max(0, hitStart - 50), hitEnd));
-            if (icon.find()) iconUrl = icon.group(1);
-
+        Map<String, Object> root = SimpleJson.asObject(SimpleJson.parse(json));
+        for (Object item : SimpleJson.asArray(root.get("hits"))) {
+            Map<String, Object> hit = SimpleJson.asObject(item);
+            String id = SimpleJson.asString(hit.get("project_id"));
+            String slug = SimpleJson.asString(hit.get("slug"));
+            String title = SimpleJson.asString(hit.get("title"));
+            if (id == null || slug == null || title == null) continue;
             projects.add(new ModrinthProject(
-                    m.group(1), m.group(2), m.group(4), m.group(5), m.group(3), dl, iconUrl));
+                    id,
+                    slug,
+                    title,
+                    Objects.toString(SimpleJson.asString(hit.get("description")), ""),
+                    Objects.toString(SimpleJson.asString(hit.get("author")), "unknown"),
+                    SimpleJson.asLong(hit.get("downloads"), 0),
+                    SimpleJson.asString(hit.get("icon_url"))));
         }
         return projects;
     }
@@ -187,9 +176,9 @@ public class ModrinthService {
         return search(query, lt, null);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Download URL resolution
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     /**
      * Fetch the best matching download URL for a project version.
@@ -216,17 +205,13 @@ public class ModrinthService {
                     + "&loaders="       + URLEncoder.encode("[\"" + tryLoader + "\"]", StandardCharsets.UTF_8);
 
             String json = get(url);
-            Matcher m = Pattern.compile("\"url\"\\s*:\\s*\"([^\"]+\\.jar)\"").matcher(json);
-            if (m.find()) return m.group(1);
+            String jarUrl = firstJarUrl(json);
+            if (jarUrl != null) return jarUrl;
         }
 
         // Last resort: any version, any loader (picks first jar available)
         String url = "https://api.modrinth.com/v2/project/" + projectId + "/version";
-        String json = get(url);
-        Matcher m = Pattern.compile("\"url\"\\s*:\\s*\"([^\"]+\\.jar)\"").matcher(json);
-        if (m.find()) return m.group(1);
-
-        return null;
+        return firstJarUrl(get(url));
     }
 
     /** Legacy string-loader overload */
@@ -236,15 +221,29 @@ public class ModrinthService {
         return getLatestDownloadUrl(projectId, mcVersion, lt);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     //  Internals
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     private String get(String url) throws IOException, InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", UA)
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString()).body();
+    }
+
+    private String firstJarUrl(String json) {
+        for (Object versionValue : SimpleJson.asArray(SimpleJson.parse(json))) {
+            Map<String, Object> version = SimpleJson.asObject(versionValue);
+            for (Object fileValue : SimpleJson.asArray(version.get("files"))) {
+                Map<String, Object> file = SimpleJson.asObject(fileValue);
+                String url = SimpleJson.asString(file.get("url"));
+                if (url != null && url.endsWith(".jar")) {
+                    return url;
+                }
+            }
+        }
+        return null;
     }
 
     private static LoaderType loaderFromString(String s) {
@@ -257,3 +256,4 @@ public class ModrinthService {
         };
     }
 }
+
