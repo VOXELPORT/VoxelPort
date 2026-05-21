@@ -200,8 +200,8 @@ export default function Install() {
   return (
     <div className="mx-auto max-w-2xl animate-fade-in">
       <div className="mb-6">
-        <h1 className="font-pixel text-2xl text-accent">Install Server</h1>
-        <p className="mt-1 text-sm text-text-muted">Set up a new Minecraft server in a few steps</p>
+        <h1 className="font-pixel text-2xl text-gradient leading-tight">Install Server</h1>
+        <p className="mt-1.5 text-sm text-text-muted">Set up a new Minecraft server in a few steps</p>
       </div>
 
       <div className="mb-8 flex items-center gap-0">
@@ -252,24 +252,31 @@ export default function Install() {
                   key={type.id}
                   type="button"
                   onClick={() => setForm((p) => ({ ...p, serverType: type.id }))}
-                  className={`relative rounded-xl border p-4 text-left transition-all duration-150 ${
+                  className={`relative rounded-xl border p-4 text-left transition-all duration-200 ${
                     selected
-                      ? `${type.bg} ${type.ring} ring-1 border-transparent`
-                      : "border-border bg-bg-card hover:border-border-glow/40 hover:bg-bg-hover"
+                      ? `${type.bg} ${type.ring} ring-1 border-transparent shadow-[0_0_20px_rgba(0,0,0,0.3)]`
+                      : "border-border bg-bg-card hover:border-border-glow/50 hover:bg-bg-hover hover:shadow-card"
                   }`}
                 >
-                  <div className="mb-2 text-2xl">{type.emoji}</div>
-                  <div className={`text-sm font-semibold ${selected ? type.color : "text-text-primary"}`}>
+                  {/* Emoji in styled container */}
+                  <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg text-xl transition-all ${
+                    selected ? `${type.bg} ring-1 ${type.ring}` : "bg-bg-hover"
+                  }`}>
+                    {type.emoji}
+                  </div>
+
+                  <div className={`text-sm font-semibold leading-tight ${selected ? type.color : "text-text-primary"}`}>
                     {type.title}
                   </div>
-                  <div className="mt-0.5 text-[11px] leading-tight text-text-muted">{type.desc}</div>
+                  <div className="mt-1 text-[11px] leading-snug text-text-muted">{type.desc}</div>
+
                   {type.recommended && (
-                    <span className="absolute right-2 top-2 rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-accent">
+                    <span className="absolute right-2 top-2 rounded-md bg-accent/20 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-accent ring-1 ring-accent/30">
                       BEST
                     </span>
                   )}
                   {selected && (
-                    <span className="absolute bottom-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                    <span className="absolute bottom-2.5 right-2.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent shadow-[0_0_8px_rgba(74,222,128,0.6)]">
                       <Check size={10} className="text-bg-primary" />
                     </span>
                   )}

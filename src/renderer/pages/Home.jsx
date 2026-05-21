@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Server } from "lucide-react";
 import { useAppContext, useToast } from "../App.jsx";
@@ -13,6 +13,7 @@ export default function Home() {
   const [consoleByServer, setConsoleByServer] = useState({});
   const [statsByServer, setStatsByServer] = useState({});
   const [modUpdateCounts, setModUpdateCounts] = useState({});
+  const didCheckUpdates = useRef(false);
   const [renameTarget, setRenameTarget] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
 
@@ -29,17 +30,6 @@ export default function Home() {
 
   useEffect(() => {
     refreshServers();
-
-    // Check for mod updates in background
-    const timer = setTimeout(async () => {
-      const res = await window.api.getServers();
-      if (!res.success) return;
-      for (const server of (res.data || [])) {
-        window.api.checkModUpdates(server.id).catch(() => null);
-      }
-    }, 3000);
-
-    return () => clearTimeout(timer);
   }, [refreshServers]);
 
   useEffect(() => {
@@ -66,6 +56,9 @@ export default function Home() {
         setModUpdateCounts({});
         return;
       }
+
+      if (didCheckUpdates.current) return;
+      didCheckUpdates.current = true;
 
       const results = await Promise.all(
         servers.map(async (server) => {
@@ -160,18 +153,32 @@ export default function Home() {
 
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-pixel text-2xl text-accent">Servers</h1>
-          <p className="mt-1 text-sm text-text-muted">
+          <h1 className="font-pixel text-2xl text-gradient leading-tight">Servers</h1>
+          <p className="mt-1.5 text-sm text-text-muted">
             {servers.length === 0
-              ? "No servers yet - install your first one."
-              : `${servers.length} server${servers.length !== 1 ? "s" : ""} · ${onlineCount} online`}
+              ? "No servers yet — install your first one."
+              : (
+                <span className="flex items-center gap-2">
+                  <span>{servers.length} server{servers.length !== 1 ? "s" : ""}</span>
+                  {onlineCount > 0 && (
+                    <>
+                      <span className="text-text-faint">·</span>
+                      <span className="flex items-center gap-1.5 text-accent font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(74,222,128,0.7)] animate-pulse-slow" />
+                        {onlineCount} online
+                      </span>
+                    </>
+                  )}
+                </span>
+              )
+            }
           </p>
         </div>
         <button
           type="button"
           id="install-new-server-btn"
           onClick={() => navigate("/install")}
-          className="inline-flex items-center gap-2 rounded-lg bg-accent/10 px-4 py-2 text-sm font-medium text-accent ring-1 ring-accent/30 transition hover:bg-accent hover:text-bg-primary hover:shadow-glow-green"
+          className="inline-flex items-center gap-2 rounded-lg bg-accent/10 px-4 py-2 text-sm font-medium text-accent ring-1 ring-accent/30 transition-all hover:bg-accent hover:text-bg-primary hover:shadow-glow-green"
         >
           <Plus size={15} />
           Install Server
@@ -179,18 +186,19 @@ export default function Home() {
       </div>
 
       {sortedServers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-bg-panel py-20 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 ring-1 ring-accent/20">
-            <Server size={28} className="text-accent" />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-bg-panel/60 py-24 text-center pixel-bg">
+          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-accent/10 ring-1 ring-accent/25 shadow-[0_0_24px_rgba(74,222,128,0.1)]">
+            <Server size={34} className="text-accent" />
           </div>
-          <h2 className="mb-2 font-pixel text-lg text-text-primary">No Servers Yet</h2>
-          <p className="mb-6 max-w-xs text-sm text-text-muted">
-            Install a Minecraft server to get started. Supports Paper, Fabric, Forge, Vanilla and more.
+          <h2 className="mb-2 font-pixel text-xl text-gradient">No Servers Yet</h2>
+          <p className="mb-7 max-w-xs text-sm text-text-muted leading-relaxed">
+            Install a Minecraft server to get started.<br />
+            Supports Paper, Fabric, Forge, Vanilla and more.
           </p>
           <button
             type="button"
             onClick={() => navigate("/install")}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-bg-primary shadow-glow-green transition hover:bg-accent-hover"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-bg-primary shadow-glow-green transition-all hover:bg-accent-hover hover:shadow-[0_0_28px_rgba(74,222,128,0.45)]"
           >
             <Plus size={14} />
             Install First Server

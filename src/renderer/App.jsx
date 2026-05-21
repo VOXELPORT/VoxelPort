@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import TitleBar from "./components/TitleBar.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Toast from "./components/Toast.jsx";
+import DiscordGate from "./components/DiscordGate.jsx";
 import Home from "./pages/Home.jsx";
 import Install from "./pages/Install.jsx";
 import Mods from "./pages/Mods.jsx";
@@ -50,6 +51,8 @@ function AppLayout() {
   const [selectedServerId, setSelectedServerId] = useState(null);
   const [loadingServers, setLoadingServers] = useState(true);
   const [toasts, setToasts] = useState([]);
+  const [discordAuth, setDiscordAuth]       = useState(null);
+  const [discordAuthLoaded, setDiscordAuthLoaded] = useState(false);
 
   const removeToast = useCallback((id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -89,6 +92,10 @@ function AppLayout() {
     window.api.getAppVersion().then((res) => {
       if (res.success) setAppVersion(res.data?.version || "1.0.0");
     });
+    window.api.discordAuthStatus().then((res) => {
+      if (res.success) setDiscordAuth(res.data);
+      setDiscordAuthLoaded(true);
+    });
   }, [refreshServers]);
 
   const appValue = useMemo(
@@ -99,15 +106,36 @@ function AppLayout() {
       selectedServerId,
       setSelectedServerId,
       settings,
-      setSettings
+      setSettings,
+      discordAuth,
+      setDiscordAuth,
     }),
-    [servers, refreshServers, loadingServers, selectedServerId, settings]
+    [servers, refreshServers, loadingServers, selectedServerId, settings, discordAuth]
   );
 
   const toastValue = useMemo(
     () => ({ showToast }),
     [showToast]
   );
+
+  // Still checking stored auth — show a minimal spinner so there's no flicker
+  if (!discordAuthLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg-primary">
+        <div className="h-6 w-6 animate-spin rounded-sm border-2 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Not verified — block the entire app
+  if (!discordAuth) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-bg-primary text-text-primary">
+        <TitleBar />
+        <DiscordGate onVerified={(auth) => setDiscordAuth(auth)} />
+      </div>
+    );
+  }
 
   return (
     <AppContext.Provider value={appValue}>
@@ -117,7 +145,7 @@ function AppLayout() {
           <Toast toasts={toasts} onClose={removeToast} />
 
           <div className="flex min-h-0 flex-1">
-            <Sidebar version={appVersion} />
+            <Sidebar version={appVersion} discordAuth={discordAuth} />
             <main className="min-w-0 flex-1 overflow-y-auto p-6">
               <Routes>
                 <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />

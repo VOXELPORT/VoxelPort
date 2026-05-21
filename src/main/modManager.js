@@ -3,21 +3,9 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import axios from "axios";
 import { EventEmitter } from "node:events";
+import { ALLOWED_DOMAINS } from "./constants.js";
 
 const USER_AGENT = "VoxelPort/1.0.0 (https://github.com/voxelport/voxelport)";
-const ALLOWED_DOMAINS = new Set([
-  "api.papermc.io",
-  "api.purpurmc.org",
-  "launchermeta.mojang.com",
-  "s3.amazonaws.com",
-  "meta.fabricmc.net",
-  "maven.fabricmc.net",
-  "files.minecraftforge.net",
-  "maven.minecraftforge.net",
-  "maven.neoforged.net",
-  "cdn.modrinth.com",
-  "hangar.papermc.io"
-]);
 
 function ensureAllowed(rawUrl) {
   const host = new URL(rawUrl).hostname;
@@ -184,6 +172,7 @@ export class ModManager extends EventEmitter {
           return {
             id: version.id,
             version: version.version_number,
+            date_published: version.date_published,
             gameVersions: version.game_versions || [],
             loaders: version.loaders || [],
             file: primary

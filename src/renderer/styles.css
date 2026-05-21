@@ -124,19 +124,7 @@ button:disabled {
   background-size: 18px 18px;
 }
 
-/* ─── Grass-block left border on active sidebar items ─ */
-.nav-active-bar {
-  position: relative;
-}
-.nav-active-bar::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 50%;
-  transform: translateY(-50%);
-  width: 3px; height: 60%;
-  background: #4ade80;
-  border-radius: 0 2px 2px 0;
-}
+/* ─── Grass-block left border — see bottom of file ─── */
 
 /* ─── Console ANSI-style text coloring ─────────────── */
 .console-warn  { color: #fbbf24; }
@@ -172,4 +160,49 @@ main > * {
 
 .toast-slide-in {
   animation: toastSlideIn 0.18s ease-out both;
+}
+
+/* ─── Gradient text (green) ────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #86efac 0%, #4ade80 40%, #22c55e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ─── Subtle grid texture ──────────────────────────── */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(42,47,58,0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42,47,58,0.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ─── Online card breathing glow ───────────────────── */
+/* Defined in tailwind.config.js keyframes; CSS class kept for  */
+/* specificity fallback in case Tailwind JIT strips the shadow. */
+.glow-breathe-fallback {
+  box-shadow:
+    0 0 0 1px rgba(74,222,128,0.25),
+    0 0 24px rgba(74,222,128,0.12),
+    0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* ─── Nav active bar — glowing left stripe ─────────── */
+.nav-active-bar { position: relative; }
+.nav-active-bar::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 60%;
+  background: linear-gradient(180deg, #86efac, #4ade80, #22c55e);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px rgba(74,222,128,0.55);
+}
+
+/* ─── Button press micro-interaction ───────────────── */
+button:not(:disabled):active {
+  transform: scale(0.97);
 }

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="24" x2="488" y2="488" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1415"/>
+      <stop offset="0.55" stop-color="#10251E"/>
+      <stop offset="1" stop-color="#070C12"/>
+    </linearGradient>
+    <filter id="softGlow" x="48" y="68" width="416" height="356" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="logoGlow" x="72" y="96" width="368" height="304" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#57F090" flood-opacity="0.20"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#57F090" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="32" fill="url(#bg)"/>
+  <g filter="url(#softGlow)" opacity="0.32">
+    <path d="M110 92H230L256 344H164L110 92Z" fill="#57F090"/>
+    <path d="M402 92H282L256 344H348L402 92Z" fill="#57F090"/>
+  </g>
+  <g filter="url(#logoGlow)">
+    <path d="M108 120H254L275 356H164L108 120Z" fill="#50D97D"/>
+    <path d="M404 120H278L237 356H347L404 120Z" fill="#50D97D"/>
+  </g>
+</svg>

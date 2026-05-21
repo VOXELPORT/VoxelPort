@@ -1,9 +1,10 @@
 import { ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import RelayClient from "./relay.js";
-
-const ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
+import { ROOM_CODE_REGEX, DEFAULT_RELAY_URL, stripLineFeed } from "./constants.js";
+import { startVerification, confirmVerification } from "./discord-verify.js";
 
 function ok(data = null) {
   return { success: true, data };
@@ -15,15 +16,10 @@ function fail(error) {
 
 function fromResult(result) {
   if (result && typeof result === "object" && "success" in result) {
-    if (result.success) return { success: true, data: result };
-    return { success: false, error: result.error || "Operation failed", data: result };
+    if (result.success) return { success: true, data: result.data ?? result };
+    return { success: false, error: result.error || "Operation failed" };
   }
-
   return { success: true, data: result };
-}
-
-function stripLineFeed(value) {
-  return String(value || "").replace(/[\r\n]/g, "");
 }
 
 function parseRelayAddress(raw) {
@@ -55,14 +51,35 @@ function parseRelayAddress(raw) {
 }
 
 function sanitizeSettings(settings = {}) {
-  const relayServerUrl = String(settings.relayServerUrl || "").trim();
+  const relayServerUrl = String(settings.relayServerUrl || "").trim() || DEFAULT_RELAY_URL;
   const defaultRam = Math.max(512, Number(settings.defaultRam || 2048));
 
+  const botUrl    = String(settings.botUrl    || "http://92.4.70.103:2525").trim();
+  const botSecret = String(settings.botSecret || "a8048edfed4f9bfcaca216b5b1217f5eb7e521c52c343698ea2b988c0969a0a6").trim();
+
+  // Strip any leftover OAuth credentials that were stored previously
+  const { discordClientId, discordClientSecret, discordUsername, ...rest } = settings;
+
   return {
-    ...settings,
+    ...rest,
     relayServerUrl,
-    defaultRam
+    defaultRam,
+    botUrl,
+    botSecret,
   };
+}
+
+// Fire-and-forget POST to the bot — used after verify/logout to keep bot in sync
+function fireBotPost(endpoint, body, botUrl, botSecret) {
+  const headers = { "Content-Type": "application/json" };
+  if (botSecret) headers["x-bot-secret"] = botSecret;
+  const url = new URL(endpoint, botUrl.endsWith("/") ? botUrl : `${botUrl}/`).toString();
+  fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8_000),
+  }).catch(() => {});
 }
 
 export function registerIpc({
@@ -204,9 +221,9 @@ export function registerIpc({
       });
 
       if (result.success && result.serverConfig) {
-        const servers = getServers();
-        servers.push(result.serverConfig);
-        setServers(servers);
+        const existing = getServers().filter((s) => s.id !== result.serverConfig.id);
+        existing.push(result.serverConfig);
+        setServers(existing);
       }
 
       return fromResult(result);
@@ -520,6 +537,77 @@ export function registerIpc({
       const openError = await shell.openPath(path.resolve(server.path));
       if (openError) throw new Error(openError);
       return ok({ opened: true });
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  // ─── Discord DM Verification ────────────────────────────────────────────────
+  ipcMain.handle("discord-verify-start", async (_event, username) => {
+    try {
+      const clean = String(username || "").trim();
+      if (!clean) throw new Error("Enter your Discord username first.");
+      const { botUrl, botSecret } = getSettings();
+      return ok(await startVerification(clean, botUrl, botSecret));
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  ipcMain.handle("discord-verify-confirm", async (_event, code) => {
+    try {
+      const clean = String(code || "").trim();
+      if (!clean) throw new Error("Enter the code from your Discord DMs.");
+      const { botUrl, botSecret } = getSettings();
+      const data = await confirmVerification(clean, botUrl, botSecret);
+
+      const auth = {
+        id:          data.userId,
+        username:    data.username,
+        globalName:  data.globalName  || data.username,
+        displayName: data.displayName || data.username,
+        avatar:      data.avatar      || null,
+        roles:       data.roles       || [],
+        verifiedAt:  Date.now(),
+      };
+
+      store.set("discordAuth", auth);
+
+      // Tell the bot this user is now actively using the app —
+      // this is what updates the live dashboard and fires the activity alert
+      fireBotPost("notify", {
+        discordTag: auth.username,
+        hostname:   os.hostname(),
+        timezone:   Intl.DateTimeFormat().resolvedOptions().timeZone,
+        version:    app.getVersion(),
+      }, botUrl, botSecret);
+
+      return ok(auth);
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  ipcMain.handle("discord-auth-status", async () => {
+    try {
+      return ok(store.get("discordAuth", null));
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  ipcMain.handle("discord-auth-logout", async () => {
+    try {
+      const prev = store.get("discordAuth", null);
+
+      // Remove old account from the bot's active players + live dashboard
+      if (prev?.username) {
+        const { botUrl, botSecret } = getSettings();
+        fireBotPost("close", { discordTag: prev.username }, botUrl, botSecret);
+      }
+
+      store.delete("discordAuth");
+      return ok({ loggedOut: true });
     } catch (error) {
       return fail(error);
     }

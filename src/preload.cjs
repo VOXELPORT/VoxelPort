@@ -49,6 +49,12 @@ contextBridge.exposeInMainWorld("api", {
   saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
   openServerFolder: (serverId) => ipcRenderer.invoke("open-server-folder", serverId),
 
+  // Discord DM verification
+  discordVerifyStart:   (username) => ipcRenderer.invoke("discord-verify-start", username),
+  discordVerifyConfirm: (code)     => ipcRenderer.invoke("discord-verify-confirm", code),
+  discordAuthStatus:    ()         => ipcRenderer.invoke("discord-auth-status"),
+  discordAuthLogout:    ()         => ipcRenderer.invoke("discord-auth-logout"),
+
   // Custom title-bar window controls
   windowMinimize:      () => ipcRenderer.invoke("window-minimize"),
   windowMaximizeToggle:() => ipcRenderer.invoke("window-maximize-toggle"),

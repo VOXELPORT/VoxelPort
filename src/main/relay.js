@@ -1,14 +1,10 @@
 import net from "node:net";
 import { EventEmitter } from "node:events";
 import WebSocket from "ws";
+import { ROOM_CODE_REGEX, stripLineFeed } from "./constants.js";
 
-const ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
 const DEFAULT_JOIN_PORT = 25565;
 const MAX_JOIN_PORT_OFFSET = 20;
-
-function stripLineFeed(value) {
-  return String(value || "").replace(/[\r\n]/g, "");
-}
 
 function connectSocket(host, port) {
   return new Promise((resolve, reject) => {
@@ -415,6 +411,8 @@ export class RelayClient extends EventEmitter {
   }
 
   async leaveRoom() {
+    const wasConnected = this.localProxyServer !== null || this.localProxySockets.size > 0;
+
     for (const socket of this.localProxySockets) {
       socket.destroy();
     }
@@ -425,7 +423,9 @@ export class RelayClient extends EventEmitter {
       this.localProxyServer = null;
     }
 
-    this.emit("disconnected");
+    if (wasConnected) {
+      this.emit("disconnected");
+    }
   }
 
   getPlayerCount() {

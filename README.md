@@ -138,11 +138,6 @@ node index.js
 
 ---
 
-
-
-
-
-
 ## Contributing
 
 Contributions, bug reports, and feature requests are welcome. Open an issue or submit a pull request if you want to improve VoxelPort.

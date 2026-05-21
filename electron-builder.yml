@@ -6,6 +6,7 @@ directories:
 files:
   - src/**/*
   - dist/**/*
+  - assets/**/*
   - package.json
 win:
   target: nsis
@@ -13,7 +14,6 @@ win:
   requestedExecutionLevel: asInvoker
 mac:
   target: dmg
-  icon: assets/icon.icns
 linux:
   target: AppImage
   icon: assets/icon.png

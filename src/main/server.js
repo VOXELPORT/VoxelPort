@@ -4,12 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import pidusage from "pidusage";
+import { stripLineFeed } from "./constants.js";
 
 const NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
-
-function stripLineFeed(value) {
-  return String(value || "").replace(/[\r\n]/g, "");
-}
 
 function splitLines(buffer, chunk) {
   const text = `${buffer}${chunk.toString("utf8")}`;
@@ -102,8 +99,8 @@ export class ServerManager extends EventEmitter {
   async startServer(config) {
     this.validateConfig(config);
     const id = String(config.id);
-    const running = this.processes.get(id);
-    if (running && !running.killed) {
+    const existingMeta = this.serverMeta.get(id);
+    if (existingMeta && (existingMeta.status === "running" || existingMeta.status === "starting")) {
       return { success: false, error: "Server already running", serverId: id };
     }
 

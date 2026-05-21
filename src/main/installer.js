@@ -5,22 +5,10 @@ import os from "node:os";
 import net from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import axios from "axios";
+import { ALLOWED_DOMAINS } from "./constants.js";
 
 const VERSION_CACHE_TTL = 10 * 60 * 1000;
 const NAME_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
-const ALLOWED_DOMAINS = new Set([
-  "api.papermc.io",
-  "api.purpurmc.org",
-  "launchermeta.mojang.com",
-  "s3.amazonaws.com",
-  "meta.fabricmc.net",
-  "maven.fabricmc.net",
-  "files.minecraftforge.net",
-  "maven.minecraftforge.net",
-  "maven.neoforged.net",
-  "cdn.modrinth.com",
-  "hangar.papermc.io"
-]);
 
 function toSafeError(error) {
   if (error?.code === "ENOSPC") return "Disk is full. Free some disk space and retry.";
@@ -237,6 +225,10 @@ export class InstallManager {
       const ram = Number(config.ram || 2048);
       const mcVersion = String(config.mcVersion || "");
       const loaderVersion = String(config.loaderVersion || "");
+
+      const VERSION_REGEX = /^[\w.\-+]{1,64}$/;
+      if (mcVersion && !VERSION_REGEX.test(mcVersion)) throw new Error("Invalid mcVersion format");
+      if (loaderVersion && !VERSION_REGEX.test(loaderVersion)) throw new Error("Invalid loaderVersion format");
 
       onProgress({ stage: "validating", percent: 5, message: "Validating configuration..." });
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import AppLogo from "./AppLogo.jsx";
 
 // SVG icons for window controls — pixel-art Minecraft style
 function IconMinimize() {
@@ -71,12 +72,7 @@ export default function TitleBar() {
     >
       {/* ── Left: App identity ── */}
       <div className="flex items-center gap-2" style={{ WebkitAppRegion: "no-drag" }}>
-        {/* Minecraft grass block mini icon */}
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <rect x="0" y="4" width="14" height="10" rx="1" fill="#5c4033" />
-          <rect x="0" y="0" width="14" height="5" rx="1" fill="#4ade80" />
-          <rect x="0" y="3.5" width="14" height="2" fill="#22c55e" opacity="0.5" />
-        </svg>
+        <AppLogo size={16} className="h-4 w-4 rounded-sm" alt="VoxelPort" />
         <span className="font-pixel text-xs text-accent tracking-wider">VoxelPort</span>
         <span className="text-[10px] text-text-faint">— Minecraft Server Manager</span>
       </div>
