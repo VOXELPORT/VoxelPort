@@ -1,0 +1,73 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # triggers on v1.2.0, v1.3.0, etc.
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create GitHub Releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew build
+
+      - name: Extract changelog for this release
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Pull the section for this version out of CHANGELOG.md
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md || echo "See CHANGELOG.md for details.")
+          # Store as multiline env var
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES"    >> $GITHUB_OUTPUT
+          echo "EOF"        >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VoxelPort ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.notes }}
+          files: |
+            build/libs/voxelport-mod-*.jar
+            build/libs/voxelport-mod-*-sources.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Modrinth
+        run: ./gradlew modrinth
+        env:
+          MODRINTH_TOKEN:      ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          RELEASE_CHANGELOG:   ${{ steps.changelog.outputs.notes }}
+
+      - name: Publish to CurseForge
+        run: ./gradlew publishCurseForge
+        env:
+          CURSEFORGE_TOKEN:      ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          RELEASE_CHANGELOG:     ${{ steps.changelog.outputs.notes }}

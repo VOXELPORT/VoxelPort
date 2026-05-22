@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+/out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# Run directories
+run/
+logs/
+debug/
+
+# OS
+.DS_Store
+Thumbs.db
