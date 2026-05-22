@@ -17,6 +17,8 @@ No port forwarding. No VPN. No router config. Just play.
 
 </div>
 
+---
+
 ## What is VoxelPort?
 
 VoxelPort is a **Fabric client mod** that lets you share your Minecraft singleplayer world with friends over the internet using a short room code — the same way you'd share a Wi-Fi password. It handles everything through a relay network so neither player needs to touch their router.
