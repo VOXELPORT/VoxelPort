@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/main/resources/assets/voxelport/icon.png" width="96" alt="VoxelPort" />
+<img src="src/main/resources/assets/voxelport/icon.png" width="96" alt="VoxelPort"/>
 
 # VoxelPort
 
