@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="src/main/resources/assets/voxelport/icon.png" width="96" alt="VoxelPort" />
-
 # VoxelPort
 
 **Host Minecraft worlds over the internet with a 6-character room code.**  
