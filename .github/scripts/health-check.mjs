@@ -9,6 +9,7 @@ const GH_TOKEN   = process.env.GITHUB_TOKEN;
 const WEBHOOK    = process.env.DISCORD_WEBHOOK;
 const GMAIL_USER = process.env.GMAIL_USER;
 const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
+const SEND_EMAIL = process.env.SEND_EMAIL === "true";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ if (WEBHOOK) {
 }
 
 // ── Email report ───────────────────────────────────────────────────────────────
-if (GMAIL_USER && GMAIL_PASS) {
+if (SEND_EMAIL && GMAIL_USER && GMAIL_PASS) {
   const issueText = newIssues.length
     ? newIssues.map(i => `  #${i.number}: ${i.title}\n  ${i.html_url}`).join("\n\n")
     : "  None in the last 6 hours";

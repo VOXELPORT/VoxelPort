@@ -1,8 +1,8 @@
-name: Discord Health Report
+name: Email Health Report
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes — Discord only
+    - cron: "30 0,6,12,18 * * *"   # 6:00 AM, 12:00 PM, 6:00 PM, 12:00 AM IST (UTC+5:30)
   workflow_dispatch:
 
 jobs:
@@ -18,10 +18,12 @@ jobs:
       - name: Install deps
         run: npm install ws nodemailer
 
-      - name: Run health check & post to Discord
+      - name: Run health check & send email
         env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          SEND_EMAIL: "false"
+          SEND_EMAIL: "true"
         run: node .github/scripts/health-check.mjs
