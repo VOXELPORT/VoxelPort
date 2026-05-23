@@ -157,7 +157,7 @@ public class DiscordVerifyScreen extends Screen {
                     this.width / 2 - this.font.width(statusMessage) / 2, 158, 0xFFFFFF55, true);
         }
 
-        String notInServer = "Not in VoxelPort Discord yet? Join discord.gg/dYXqe6tvSN first.";
+        String notInServer = "Not in VoxelPort Discord yet? Join discord.gg/EuDMWUuGpp first.";
         gui.text(this.font, notInServer,
                 this.width / 2 - this.font.width(notInServer) / 2, this.height - 24, 0xFF606060, true);
 

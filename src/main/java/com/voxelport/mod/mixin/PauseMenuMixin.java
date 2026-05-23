@@ -54,12 +54,12 @@ public abstract class PauseMenuMixin extends Screen {
             try {
                 DiscordVerifyService.DiscordProfile profile =
                         VoxelPortMod.getDiscordVerifyService().readCachedProfile();
-                if (profile != null && !VoxelPortMod.getDiscordVerifyService().validateWithBot(profile.userId())) {
+                if (profile == null || !VoxelPortMod.getDiscordVerifyService().validateWithBot(profile.userId())) {
                     if (this.minecraft != null) {
                         this.minecraft.execute(() -> {
                             if (this.minecraft.player != null) {
                                 this.minecraft.player.sendSystemMessage(Component.literal(
-                                        "§8[§aVoxelPort§8] §cYour Discord account is no longer authorized."));
+                                        "§8[§aVoxelPort§8] §cNot authorized — you must be a member of the VoxelPort Discord server."));
                             }
                         });
                     }

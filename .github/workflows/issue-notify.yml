@@ -1,0 +1,70 @@
+name: Issue Notification
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"📋 New GitHub Issue #${ISSUE_NUMBER}\",
+                \"description\": \"**${ISSUE_TITLE}**\n\nOpened by **${ISSUE_AUTHOR}**\",
+                \"url\": \"${ISSUE_URL}\",
+                \"color\": 5793266
+              }]
+            }"
+
+      - name: Send Email
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 -c "
+          import smtplib, os
+          from email.mime.text import MIMEText
+          user   = os.environ['GMAIL_USER']
+          pw     = os.environ['GMAIL_APP_PASSWORD']
+          number = os.environ['ISSUE_NUMBER']
+          title  = os.environ['ISSUE_TITLE']
+          author = os.environ['ISSUE_AUTHOR']
+          url    = os.environ['ISSUE_URL']
+          body   = os.environ.get('ISSUE_BODY', '(no description)')[:500]
+
+          text = f'''New issue on VoxelPort GitHub:
+
+          Issue #{number}: {title}
+          Opened by: {author}
+          Link: {url}
+
+          Description:
+          {body}
+          '''
+
+          msg = MIMEText(text)
+          msg['Subject'] = f'[VoxelPort] New Issue #{number}: {title}'
+          msg['From'] = user
+          msg['To']   = user
+          s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+          s.login(user, pw)
+          s.sendmail(user, [user], msg.as_string())
+          s.quit()
+          print('Email sent')
+          "

@@ -1,0 +1,80 @@
+name: Downtime Alert
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Website
+        id: website
+        run: |
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 https://voxelport.qzz.io || echo "000")
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "Website status: $STATUS"
+
+      - name: Check Bot / Relay
+        id: bot
+        run: |
+          RESP=$(curl -s --max-time 10 http://voxelportrelay.qzz.io:2525/health || echo "")
+          RELAY=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('up' if d.get('ok') else 'down')" 2>/dev/null || echo "down")
+          BOT_READY=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('up' if d.get('botReady') else 'down')" 2>/dev/null || echo "down")
+          echo "relay=$RELAY" >> $GITHUB_OUTPUT
+          echo "bot=$BOT_READY" >> $GITHUB_OUTPUT
+          echo "Bot health: relay=$RELAY bot=$BOT_READY"
+
+      - name: Alert Discord if anything is down
+        if: |
+          steps.website.outputs.status != '200' ||
+          steps.bot.outputs.relay != 'up' ||
+          steps.bot.outputs.bot != 'up'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          WEBSITE_STATUS="${{ steps.website.outputs.status }}"
+          RELAY_STATUS="${{ steps.bot.outputs.relay }}"
+          BOT_STATUS="${{ steps.bot.outputs.bot }}"
+
+          MSG=""
+          [ "$WEBSITE_STATUS" != "200" ] && MSG="${MSG}❌ **Website** is DOWN (HTTP $WEBSITE_STATUS)\n"
+          [ "$RELAY_STATUS" != "up" ]    && MSG="${MSG}❌ **Relay** is DOWN\n"
+          [ "$BOT_STATUS" != "up" ]      && MSG="${MSG}❌ **Discord Bot** is not ready\n"
+
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"🚨 **VoxelPort Alert** — something is down!\n\n${MSG}\n<t:$(date +%s):R>\"}"
+
+      - name: Alert Email if anything is down
+        if: |
+          steps.website.outputs.status != '200' ||
+          steps.bot.outputs.relay != 'up' ||
+          steps.bot.outputs.bot != 'up'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          WEBSITE_STATUS="${{ steps.website.outputs.status }}"
+          RELAY_STATUS="${{ steps.bot.outputs.relay }}"
+          BOT_STATUS="${{ steps.bot.outputs.bot }}"
+
+          SUBJECT="🚨 VoxelPort ALERT — Service Down"
+          BODY="VoxelPort downtime detected at $(date -u)\n\nWebsite: $WEBSITE_STATUS\nRelay: $RELAY_STATUS\nBot: $BOT_STATUS\n\nCheck your VPS immediately."
+
+          python3 -c "
+          import smtplib, os
+          from email.mime.text import MIMEText
+          user = os.environ['GMAIL_USER']
+          pw   = os.environ['GMAIL_APP_PASSWORD']
+          msg  = MIMEText('$BODY')
+          msg['Subject'] = '$SUBJECT'
+          msg['From'] = user
+          msg['To']   = user
+          s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+          s.login(user, pw)
+          s.sendmail(user, [user], msg.as_string())
+          s.quit()
+          print('Email sent')
+          "

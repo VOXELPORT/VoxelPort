@@ -70,7 +70,7 @@ public class VoxelPortClient implements ClientModInitializer {
         JoinService joinSvc = joinService;
 
         Component header = null;
-        Component footer = Component.literal("§7discord.gg/dYXqe6tvSN  §8|  §7voxelport.gg");
+        Component footer = Component.literal("§7discord.gg/EuDMWUuGpp  §8|  §7voxelport.gg");
 
         if (hostSvc != null && hostSvc.isRunning()) {
             HostingService.HostSession session = hostSvc.getSession();

@@ -14,7 +14,7 @@ import java.nio.file.Path;
 public class VoxelPortMod implements ModInitializer {
     public static final String MOD_ID = "voxelport";
     public static final String WEBSITE = "https://github.com/voxelport";
-    public static final String DISCORD = "https://discord.gg/dYXqe6tvSN";
+    public static final String DISCORD = "https://discord.gg/EuDMWUuGpp";
     public static final String VERSION = FabricLoader.getInstance()
             .getModContainer(MOD_ID)
             .map(c -> c.getMetadata().getVersion().getFriendlyString())

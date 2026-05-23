@@ -11,9 +11,9 @@ No port forwarding. No VPN. No router config. Just play.
 [![Fabric](https://img.shields.io/badge/Fabric-0.18.6+-dbb997?style=flat-square)](https://fabricmc.net)
 [![Java](https://img.shields.io/badge/Java-25+-e76f00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](LICENSE)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/dYXqe6tvSN)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/EuDMWUuGpp)
 
-[Download](#install) · [How It Works](#how-it-works) · [Discord](https://discord.gg/dYXqe6tvSN) · [Status](https://voxelport.qzz.io/#/status)
+[Download](#install) · [How It Works](#how-it-works) · [Discord](https://discord.gg/EuDMWUuGpp) · [Status](https://voxelport.qzz.io/#/status)
 
 </div>
 
@@ -51,7 +51,7 @@ Friend pastes G0GI5Z           →  connected in seconds
 - **Fabric Loader:** `>=0.18.6`
 - **Java:** `>=25`
 - **Environment:** Client only — your friends do not need a dedicated server
-- **Discord:** You must be a member of the [VoxelPort Discord server](https://discord.gg/dYXqe6tvSN)
+- **Discord:** You must be a member of the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp)
 
 > VoxelPort is a **client-side mod**. The person hosting does not run a server — they share their singleplayer world directly.
 
@@ -63,7 +63,7 @@ Friend pastes G0GI5Z           →  connected in seconds
 2. Download the latest `voxelport-mod-X.X.X.jar` from [Releases](https://github.com/trazhub/VoxelPort/releases)
 3. Place the JAR in your Minecraft `mods/` folder
 4. Launch Minecraft with the Fabric profile
-5. Join the [VoxelPort Discord server](https://discord.gg/dYXqe6tvSN) — required for verification
+5. Join the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) — required for verification
 
 ---
 
@@ -230,6 +230,6 @@ VoxelPort is not affiliated with Mojang, Microsoft, Fabric, or Discord.
 
 <div align="center">
 
-Built by [trazhub](https://github.com/trazhub) · [Discord](https://discord.gg/dYXqe6tvSN) · [Sponsor](https://github.com/sponsors/trazhub)
+Built by [trazhub](https://github.com/trazhub) · [Discord](https://discord.gg/EuDMWUuGpp) · [Sponsor](https://github.com/sponsors/trazhub)
 
 </div>
