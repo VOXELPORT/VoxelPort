@@ -21,7 +21,6 @@
 ## [1.1.0] - 2026-05-22
 
 ### Added
-- VoxelPort rebrand from the earlier LocalMiner name.
 - VoxelPort relay network support.
 - Discord verification flow.
 - Room-code style client UI for legacy client mode.
