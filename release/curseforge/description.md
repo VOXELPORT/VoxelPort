@@ -7,7 +7,7 @@
 **Host your Fabric server without port forwarding.**  
 Install the server mod, add your Discord-issued token, and share a normal join address with vanilla players.
 
-[Discord](https://discord.gg/Fbqx76j5US) | [Website](https://www.voxelport.in) | [Status Page](https://www.voxelport.in/#/status) | [GitHub](https://github.com/VOXELPORT/VoxelPort)
+[Discord](https://discord.com/invite/5Q6BRnJYHW) | [Website](https://www.voxelport.in) | [Status Page](https://www.voxelport.in/#/status) | [GitHub](https://github.com/VOXELPORT/VoxelPort)
 
 </div>
 
@@ -33,7 +33,7 @@ Players do not need to install the mod.
 ## Quick Start
 
 1. Install Fabric Loader on your Minecraft server.
-2. Join the [VoxelPort Discord](https://discord.gg/Fbqx76j5US).
+2. Join the [VoxelPort Discord](https://discord.com/invite/5Q6BRnJYHW).
 3. Run `/gettoken` with the VoxelPort bot.
 4. Put the VoxelPort mod JAR in your server's `mods/` folder.
 5. Restart the server.

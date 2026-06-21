@@ -1,6 +1,6 @@
 # VoxelPort
 
-> ⚠️ **Discord membership required** — you must join the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) before using this mod. The bot sends a 6-digit code to your Discord DMs to verify your identity. No new account needed — just Discord.
+> ⚠️ **Discord membership required** — you must join the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) before using this mod. The bot sends a 6-digit code to your Discord DMs to verify your identity. No new account needed — just Discord.
 
 > 🌐 **External connections** — this mod contacts `voxelportrelay.qzz.io` (bot server on port 2525) for Discord verification and session validation, and `wss://voxelportrelay.qzz.io/relay` for game traffic routing. Full details in the Privacy section below.
 
@@ -36,14 +36,14 @@ Friend pastes G0GI5Z           →  connected in seconds
 | Fabric Loader | `>=0.18.6` |
 | Java | `>=25` |
 | Side | **Client only** — the host does not run a dedicated server |
-| Discord | Must be a member of the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) |
+| Discord | Must be a member of the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) |
 
 ---
 
 ## How to Install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) `0.18.6` or newer
-2. Join the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) — required for verification
+2. Join the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) — required for verification
 3. Drop `voxelport-mod-1.2.0.jar` into your Minecraft `mods/` folder
 4. Launch Minecraft with the Fabric profile
 
@@ -150,7 +150,7 @@ No data is sold or shared with third parties. Delete `config/voxelport/` to remo
 
 ## Links
 
-- [Discord](https://discord.gg/EuDMWUuGpp) — get verified, get support, follow updates
+- [Discord](https://discord.com/invite/5Q6BRnJYHW) — get verified, get support, follow updates
 - [GitHub](https://github.com/trazhub/VoxelPort) — full source code, MIT licensed
 - [Status page](https://voxelport.qzz.io/#/status) — check relay health from your location
 - [Sponsor](https://github.com/sponsors/trazhub) — help fund more relay regions

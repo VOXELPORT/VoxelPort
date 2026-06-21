@@ -123,7 +123,7 @@ Go to `modrinth.com/dashboard/projects` → New project
 
 **External links:**
 - Source code: `https://github.com/trazhub/VoxelPort`
-- Discord invite: `https://discord.gg/EuDMWUuGpp`
+- Discord invite: `https://discord.com/invite/5Q6BRnJYHW`
 - Wiki / Docs: (leave blank for now)
 
 ### Step 2: The Modrinth project description
@@ -139,7 +139,7 @@ Host your Minecraft singleplayer world over the internet and invite friends with
 
 > **Requires:** Fabric Loader · Minecraft 26.x · Java 25+  
 > **Side:** Client only  
-> ⚠️ You must join the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) to use this mod — identity verification is done via Discord DM.
+> ⚠️ You must join the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) to use this mod — identity verification is done via Discord DM.
 
 ---
 
@@ -203,7 +203,7 @@ No passwords. No email. No game data. No analytics. Full privacy policy: [voxelp
 
 ## Links
 
-- [Discord](https://discord.gg/EuDMWUuGpp) — get verified, get support, follow updates
+- [Discord](https://discord.com/invite/5Q6BRnJYHW) — get verified, get support, follow updates
 - [GitHub](https://github.com/trazhub/VoxelPort) — source code, issues, PRs
 - [Status Page](https://voxelport.qzz.io/#/status) — check relay health from your location
 - [Sponsor](https://github.com/sponsors/trazhub) — help fund more relay regions
@@ -274,7 +274,7 @@ Go to `curseforge.com/dashboard` → Create Project → Minecraft: Java Edition 
 
 **Links:**
 - Source code: `https://github.com/trazhub/VoxelPort`
-- Discord: `https://discord.gg/EuDMWUuGpp`
+- Discord: `https://discord.com/invite/5Q6BRnJYHW`
 
 ### Step 2: CurseForge description
 

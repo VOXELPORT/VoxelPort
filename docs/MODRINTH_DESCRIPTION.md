@@ -1,4 +1,4 @@
-> ⚠️ **Requires Discord membership** — you must join the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp) to use this mod. The bot sends a 6-digit code to your DMs to verify your identity. No new account needed.
+> ⚠️ **Requires Discord membership** — you must join the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) to use this mod. The bot sends a 6-digit code to your DMs to verify your identity. No new account needed.
 
 > 🌐 **External connections** — this mod contacts `voxelportrelay.qzz.io:2525` (Discord verification & session checks) and `wss://voxelportrelay.qzz.io/relay` (game traffic routing). See the Privacy section below.
 
@@ -40,7 +40,7 @@ Open the pause menu → click **Open to VoxelPort** → verify once with Discord
 
 - Minecraft `>=26 <27` · Fabric Loader `>=0.18.6` · Java `>=25`
 - **Client side only** — no server installation needed
-- Must be a member of the [VoxelPort Discord server](https://discord.gg/EuDMWUuGpp)
+- Must be a member of the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW)
 
 ---
 
@@ -79,6 +79,6 @@ Full privacy policy: [voxelport.qzz.io/legal](https://voxelport.qzz.io/#/legal)
 
 Open source under MIT — [github.com/trazhub/VoxelPort](https://github.com/trazhub/VoxelPort)
 
-[Discord](https://discord.gg/EuDMWUuGpp) · [Status](https://voxelport.qzz.io/#/status) · [Sponsor](https://github.com/sponsors/trazhub)
+[Discord](https://discord.com/invite/5Q6BRnJYHW) · [Status](https://voxelport.qzz.io/#/status) · [Sponsor](https://github.com/sponsors/trazhub)
 
 *Not affiliated with Mojang, Microsoft, Fabric, or Discord.*

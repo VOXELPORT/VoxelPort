@@ -7,7 +7,7 @@
 **Host your Fabric server without port forwarding.**  
 Install the server mod, add your Discord-issued token, and share a normal join address with vanilla players.
 
-[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/Fbqx76j5US)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/5Q6BRnJYHW)
 [![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://www.voxelport.in)
 [![Status](https://img.shields.io/badge/Status-Page-00FFB2?style=flat-square)](https://www.voxelport.in/#/status)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](https://github.com/VOXELPORT)
@@ -42,7 +42,7 @@ Players do not need to install the mod.
 ## Quick Start
 
 1. Install Fabric Loader on your Minecraft server.
-2. Join the [VoxelPort Discord](https://discord.gg/Fbqx76j5US).
+2. Join the [VoxelPort Discord](https://discord.com/invite/5Q6BRnJYHW).
 3. Run `/gettoken` with the VoxelPort bot.
 4. Put the VoxelPort mod JAR in your server's `mods/` folder.
 5. Restart the server.
@@ -131,7 +131,7 @@ Update to the latest mod release. Current server mode buffers fragmented WebSock
 
 ## Links
 
-- [Discord](https://discord.gg/Fbqx76j5US)
+- [Discord](https://discord.com/invite/5Q6BRnJYHW)
 - [Website](https://www.voxelport.in)
 - [Status Page](https://www.voxelport.in/#/status)
 - [Join Us](https://www.voxelport.in/#/join)
