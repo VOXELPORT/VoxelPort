@@ -1,33 +1,58 @@
-# VoxelPort Fabric Mod
+<div align="center">
 
-Host a Minecraft server over the internet without port forwarding. Server owners install the mod, connect it to the VoxelPort relay with a Discord-issued token, and players join a normal public address such as `play.voxelport.in:25590`.
+<img src="https://pr.opop.eu.org/Frame_2.png" width="100" alt="VoxelPort" />
 
-## Current Status
+# VoxelPort Fabric Server Mod
 
-- Minecraft: `>=26 <27`
-- Fabric Loader: `>=0.18.6`
-- Java: `>=25`
-- Primary mode: dedicated Fabric server
-- Legacy mode: client singleplayer room-code UI is still present, but server mode is the recommended path
+**Host your Fabric server without port forwarding.**  
+Install the server mod, add your Discord-issued token, and share a normal join address with vanilla players.
 
-## Server Install
+[![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/Fbqx76j5US)
+[![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://www.voxelport.in)
+[![Status](https://img.shields.io/badge/Status-Page-00FFB2?style=flat-square)](https://www.voxelport.in/#/status)
+[![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](https://github.com/VOXELPORT)
+
+</div>
+
+---
+
+## Overview
+
+VoxelPort connects your dedicated Fabric server to VoxelPort-operated relay infrastructure. Your server opens an outbound encrypted WebSocket connection, the relay assigns a public TCP port, and players join that address from vanilla Minecraft.
+
+Players do not need to install the mod.
+
+<p align="center">
+  <img src="https://traz.arge.in/how-it-works.gif" alt="Animated VoxelPort relay flow" width="900" />
+</p>
+
+---
+
+## Requirements
+
+| Requirement | Version |
+|---|---|
+| Minecraft | 26.x |
+| Fabric Loader | 0.18.6+ |
+| Java | 25+ |
+| Token | Free from the VoxelPort Discord |
+
+---
+
+## Quick Start
 
 1. Install Fabric Loader on your Minecraft server.
-2. Put `voxelport-mod-X.X.X.jar` in the server `mods/` folder.
-3. Start the server once.
-4. In Discord, run `/gettoken` with the VoxelPort bot.
-5. In the server console or as an operator, run:
+2. Join the [VoxelPort Discord](https://discord.gg/Fbqx76j5US).
+3. Run `/gettoken` with the VoxelPort bot.
+4. Put the VoxelPort mod JAR in your server's `mods/` folder.
+5. Restart the server.
+6. In the server console or as an operator, run `/voxelport token <token>`.
+7. Run `/voxelport start`.
+8. Share the address shown by `/voxelport address`.
 
-```mcfunction
-/voxelport token <token-from-discord-gettoken>
-/voxelport start
-```
+Keep your token secret. Treat it like a password for your relay slot.
 
-`/voxelport start` uses the server's configured port automatically. To expose a different local port:
-
-```mcfunction
-/voxelport start <port>
-```
+---
 
 ## Commands
 
@@ -40,30 +65,19 @@ Host a Minecraft server over the internet without port forwarding. Server owners
 /voxelport stop
 ```
 
-`/voxelport token` saves the token locally in `config/voxelport/settings.properties`. Treat that file like a password.
+`/voxelport start` uses the server's configured Minecraft port automatically. Use `/voxelport start <port>` only when you need to expose a different local port.
 
-## How It Works
+---
 
-```text
-Minecraft server -> VoxelPort relay -> public TCP port -> vanilla players
-```
+## Configuration
 
-1. The mod registers with the relay using your server token.
-2. The relay assigns a stable public port.
-3. Players join `play.voxelport.in:<assigned-port>` from vanilla Minecraft.
-4. The mod bridges raw Minecraft traffic between the relay and your local server port.
-
-Players do not need the mod.
-
-## Config
-
-Config is stored at:
+The mod saves server settings at:
 
 ```text
 config/voxelport/settings.properties
 ```
 
-Useful keys:
+Example config:
 
 ```properties
 server_token=vp_...
@@ -73,62 +87,60 @@ max_connections=200
 relay_url=wss://voxelport.in
 ```
 
-Leave `relay_url` blank unless you are testing a custom relay.
+Leave `relay_url` blank or set to `wss://voxelport.in` unless you are testing with VoxelPort support.
 
-## Recent Fixes
+---
 
-- Added dedicated server support through `/voxelport` commands.
-- Switched server mode to the same token/public-port relay protocol used by the plugin.
-- Fixed random compression disconnects by buffering fragmented WebSocket text frames before parsing.
-- Serialized outgoing WebSocket writes so relay frames cannot overlap under load.
-- Removed exposed client-side bot secrets from the mod source/JAR.
-- Fixed the Windows Gradle wrapper so builds no longer pause at the end.
+## How It Works
 
-## Building
+1. The mod opens an outbound WebSocket to the relay.
+2. It registers using your Discord-issued server token.
+3. The relay validates the token and assigns a stable TCP port.
+4. Players join `play.voxelport.in:<assigned-port>` from vanilla Minecraft.
+5. Minecraft traffic is bridged through the relay to your Fabric server.
 
-```bash
-./gradlew build
-```
+The relay is a bridge, not a game server. Your world, mods, and player data stay on your own server.
 
-Output:
+The relay service and Discord bot are VoxelPort-operated infrastructure. Their internal implementation details are not documented as public source components here.
 
-```text
-build/libs/voxelport-mod-X.X.X.jar
-build/libs/voxelport-mod-X.X.X-sources.jar
-```
-
-On Windows:
-
-```powershell
-.\gradlew.bat build
-```
+---
 
 ## Troubleshooting
 
-### `No VoxelPort token set`
-
-Run `/gettoken` in Discord, then:
+**No VoxelPort token set**  
+Run `/gettoken` in Discord, then run:
 
 ```mcfunction
 /voxelport token <token>
 /voxelport start
 ```
 
-### `invalid distance too far back`
+**Status shows disconnected**  
+Make sure your host allows outbound HTTPS/WSS traffic to `voxelport.in` on port `443`.
 
-This points to a corrupted Minecraft packet stream. Update to the latest JAR from this repository; the server relay bridge now buffers fragmented WebSocket frames and serializes relay writes.
+**Players cannot join**  
+Run `/voxelport status` or `/voxelport address`, then make sure players are joining the public address shown there.
 
-### Players cannot join
+**Token rejected**  
+Run `/revoketoken` and `/gettoken` again in Discord, save the new token with `/voxelport token <token>`, then run `/voxelport start`.
 
-Run:
+**Disconnects with compression or packet errors**  
+Update to the latest mod release. Current server mode buffers fragmented WebSocket frames and serializes relay writes to prevent packet-stream corruption.
 
-```mcfunction
-/voxelport status
-/voxelport address
-```
+---
 
-Make sure players are joining the public address shown by `/voxelport address`, not your private server IP.
+## Links
+
+- [Discord](https://discord.gg/Fbqx76j5US)
+- [Website](https://www.voxelport.in)
+- [Status Page](https://www.voxelport.in/#/status)
+- [Join Us](https://www.voxelport.in/#/join)
+- [VoxelPort GitHub](https://github.com/VOXELPORT)
+
+---
 
 ## License
 
-MIT. VoxelPort is not affiliated with Mojang, Microsoft, Fabric, or Discord.
+MIT. See the included license file.
+
+VoxelPort is not affiliated with Mojang, Microsoft, Fabric, CurseForge, Modrinth, or Discord.
