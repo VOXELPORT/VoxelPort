@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 
 public final class AutoUpdater {
     private static final URI LATEST_RELEASE = URI.create(
-            "https://api.github.com/repos/voxelport/voxelport-mod/releases/latest");
+            "https://api.github.com/repos/VOXELPORT/VoxelPort/releases/latest");
 
     private AutoUpdater() {}
 

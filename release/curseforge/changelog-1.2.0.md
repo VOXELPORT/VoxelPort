@@ -1,6 +1,4 @@
-# Changelog
-
-## [1.2.0] - 2026-06-21
+## VoxelPort 1.2.0
 
 ### Added
 - Dedicated Fabric server support through `/voxelport` commands.
@@ -17,15 +15,3 @@
 ### Security
 - Removed exposed client-side bot secrets from the mod source and release JAR.
 - Token is stored locally on the server and should be treated like a password.
-
-## [1.1.0] - 2026-05-22
-
-### Added
-- VoxelPort rebrand from the earlier LocalMiner name.
-- VoxelPort relay network support.
-- Discord verification flow.
-- Room-code style client UI for legacy client mode.
-
-### Security
-- Hardened local config and auth cache handling.
-- Added room code validation.

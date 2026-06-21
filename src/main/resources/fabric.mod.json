@@ -3,19 +3,19 @@
   "id": "voxelport",
   "version": "${version}",
   "name": "VoxelPort",
-  "description": "Host Minecraft servers or singleplayer worlds over the internet with VoxelPort room codes. No port forwarding needed.",
+  "description": "Host a dedicated Fabric server over the internet with VoxelPort relay infrastructure. No port forwarding needed, and players can join with vanilla Minecraft.",
   "authors": [
     {
       "name": "VoxelPort",
       "contact": {
-        "homepage": "https://github.com/voxelport"
+        "homepage": "https://www.voxelport.in"
       }
     }
   ],
   "contact": {
-    "homepage": "https://github.com/voxelport",
-    "sources": "https://github.com/voxelport/voxelport-mod",
-    "discord": "https://discord.gg/EuDMWUuGpp"
+    "homepage": "https://www.voxelport.in",
+    "sources": "https://github.com/VOXELPORT/VoxelPort",
+    "discord": "https://discord.gg/Fbqx76j5US"
   },
   "license": "MIT",
   "icon": "assets/voxelport/icon.png",
