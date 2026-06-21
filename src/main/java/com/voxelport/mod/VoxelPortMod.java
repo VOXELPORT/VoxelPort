@@ -4,6 +4,8 @@ import com.voxelport.mod.logic.AutoUpdater;
 import com.voxelport.mod.logic.DiscordVerifyService;
 import com.voxelport.mod.logic.HostingService;
 import com.voxelport.mod.logic.VoxelPortConfig;
+import com.voxelport.mod.server.ServerRelayService;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -13,8 +15,8 @@ import java.nio.file.Path;
 
 public class VoxelPortMod implements ModInitializer {
     public static final String MOD_ID = "voxelport";
-    public static final String WEBSITE = "https://github.com/voxelport";
-    public static final String DISCORD = "https://discord.gg/EuDMWUuGpp";
+    public static final String WEBSITE = "https://wiki.voxelport.in";
+    public static final String DISCORD = "https://discord.gg/5Q6BRnJYHW";
     public static final String VERSION = FabricLoader.getInstance()
             .getModContainer(MOD_ID)
             .map(c -> c.getMetadata().getVersion().getFriendlyString())
@@ -22,6 +24,7 @@ public class VoxelPortMod implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("VoxelPort");
 
     private static HostingService hostingService;
+    private static ServerRelayService serverRelayService;
     private static DiscordVerifyService discordVerifyService;
     private static VoxelPortConfig config;
     private static final java.util.concurrent.atomic.AtomicReference<String> pendingUserNotice =
@@ -37,11 +40,15 @@ public class VoxelPortMod implements ModInitializer {
         config.load();
 
         hostingService = new HostingService(configDir, LOGGER);
+        serverRelayService = new ServerRelayService(LOGGER);
         discordVerifyService = new DiscordVerifyService(configDir, LOGGER);
-        AutoUpdater.checkAsync(VERSION, LOGGER, pendingUserNotice::set);
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+            AutoUpdater.checkAsync(VERSION, LOGGER, pendingUserNotice::set);
+        }
     }
 
     public static HostingService getHostingService() { return hostingService; }
+    public static ServerRelayService getServerRelayService() { return serverRelayService; }
     public static DiscordVerifyService getDiscordVerifyService() { return discordVerifyService; }
     public static VoxelPortConfig getConfig() { return config; }
 

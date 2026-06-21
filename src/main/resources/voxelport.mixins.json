@@ -4,8 +4,11 @@
   "package": "com.voxelport.mod.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "CommandsMixin",
+    "MinecraftServerTransferMixin"
+  ],
+  "client": [
     "IntegratedServerTransferMixin",
-    "MinecraftServerTransferMixin",
     "PauseMenuMixin",
     "MultiplayerScreenMixin",
     "TitleScreenMixin"

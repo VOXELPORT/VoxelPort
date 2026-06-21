@@ -1,7 +1,6 @@
 package com.voxelport.mod.mixin;
 
 import com.voxelport.mod.VoxelPortMod;
-import com.voxelport.mod.client.gui.DiscordVerifyScreen;
 import com.voxelport.mod.client.gui.HostStatusScreen;
 import com.voxelport.mod.logic.DiscordVerifyService;
 import com.voxelport.mod.logic.HostingService;
@@ -36,15 +35,7 @@ public abstract class PauseMenuMixin extends Screen {
                 if (server == null) return;
                 int port = server.getPort();
 
-                DiscordVerifyService.DiscordProfile cached =
-                        VoxelPortMod.getDiscordVerifyService().readCachedProfile();
-                if (cached != null && cached.isValid()) {
-                    startHostingBackground(svc, port, button);
-                } else {
-                    this.minecraft.setScreen(new DiscordVerifyScreen(this, profile -> {
-                        startHostingBackground(svc, port, button);
-                    }));
-                }
+                startHostingBackground(svc, port, button);
             }
         }).bounds(this.width / 2 - 102, this.height / 4 + 144 - 16, 204, 20).build());
     }
@@ -54,7 +45,7 @@ public abstract class PauseMenuMixin extends Screen {
             try {
                 DiscordVerifyService.DiscordProfile profile =
                         VoxelPortMod.getDiscordVerifyService().readCachedProfile();
-                if (profile == null || !VoxelPortMod.getDiscordVerifyService().validateWithBot(profile.userId())) {
+                if (profile != null && !VoxelPortMod.getDiscordVerifyService().validateWithBot(profile.userId())) {
                     if (this.minecraft != null) {
                         this.minecraft.execute(() -> {
                             if (this.minecraft.player != null) {

@@ -87,17 +87,6 @@ public class JoinCodeScreen extends Screen {
 
         String code = rawCode.toUpperCase();
 
-        DiscordVerifyService.DiscordProfile cached = VoxelPortMod.getDiscordVerifyService().readCachedProfile();
-        if (cached == null || !cached.isValid()) {
-            this.minecraft.setScreen(new DiscordVerifyScreen(this, profile -> {
-                if (this.minecraft != null) {
-                    this.minecraft.setScreen(this);
-                    startConnect(code);
-                }
-            }));
-            return;
-        }
-
         startConnect(code);
     }
 

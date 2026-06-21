@@ -3,7 +3,7 @@
   "id": "voxelport",
   "version": "${version}",
   "name": "VoxelPort",
-  "description": "Host and join Minecraft worlds over the internet — no port forwarding needed. Uses the VoxelPort relay network. Requires Discord verification (you must be a member of the VoxelPort Discord server). Stores a local auth cache and machine fingerprint on your device. No data is sold or shared with third parties.",
+  "description": "Host Minecraft servers or singleplayer worlds over the internet with VoxelPort room codes. No port forwarding needed.",
   "authors": [
     {
       "name": "VoxelPort",
@@ -19,7 +19,7 @@
   },
   "license": "MIT",
   "icon": "assets/voxelport/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
     "main": [
       "com.voxelport.mod.VoxelPortMod"

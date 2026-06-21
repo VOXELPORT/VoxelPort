@@ -23,8 +23,7 @@ import java.util.Properties;
 import java.util.UUID;
 
 public final class DiscordVerifyService {
-    private static final String BOT_URL = "http://voxelportrelay.qzz.io:2525";
-    private static final String BOT_SECRET = "a8048edfed4f9bfcaca216b5b1217f5eb7e521c52c343698ea2b988c0969a0a6";
+    private static final String BOT_URL = "http://wiki.voxelport.in:2525";
     // 12 hours — short enough to limit stale auth, long enough for daily players
     private static final Duration AUTH_VALID_FOR = Duration.ofHours(12);
     private static final String AUTH_FILE = "discord_auth.properties";
@@ -157,7 +156,6 @@ public final class DiscordVerifyService {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(12))
                 .header("Content-Type", "application/json")
-                .header("x-bot-secret", BOT_SECRET)
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
                 .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));

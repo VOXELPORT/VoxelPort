@@ -37,7 +37,7 @@ public class SettingsScreen extends Screen {
         relayField = new EditBox(this.font, cx - 150, 66, 300, 20,
                 Component.literal("Relay URL"));
         relayField.setMaxLength(256);
-        relayField.setHint(Component.literal("wss://voxelportrelay.qzz.io/relay"));
+        relayField.setHint(Component.literal("wss://voxelport.in"));
         // Pre-fill with currently saved custom URL (blank = using default)
         String saved = VoxelPortMod.getConfig().getRelayUrl();
         if (saved != null) relayField.setValue(saved);
