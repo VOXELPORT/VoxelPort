@@ -10,8 +10,7 @@
   "client": [
     "IntegratedServerTransferMixin",
     "PauseMenuMixin",
-    "MultiplayerScreenMixin",
-    "TitleScreenMixin"
+    "MultiplayerScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

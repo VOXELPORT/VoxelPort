@@ -12,30 +12,36 @@ jobs:
       - name: Check Website
         id: website
         run: |
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 https://voxelport.qzz.io || echo "000")
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 https://wiki.voxelport.in || echo "000")
           echo "status=$STATUS" >> $GITHUB_OUTPUT
           echo "Website status: $STATUS"
 
-      - name: Check Bot / Relay
+      - name: Check Relay
+        id: relay
+        run: |
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 https://play.voxelport.in/healthz || echo "000")
+          RELAY=$([ "$STATUS" = "200" ] && echo "up" || echo "down")
+          echo "relay=$RELAY" >> $GITHUB_OUTPUT
+          echo "Relay health: $RELAY (HTTP $STATUS)"
+
+      - name: Check Bot
         id: bot
         run: |
-          RESP=$(curl -s --max-time 10 http://voxelportrelay.qzz.io:2525/health || echo "")
-          RELAY=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('up' if d.get('ok') else 'down')" 2>/dev/null || echo "down")
-          BOT_READY=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('up' if d.get('botReady') else 'down')" 2>/dev/null || echo "down")
-          echo "relay=$RELAY" >> $GITHUB_OUTPUT
+          RESP=$(curl -s --max-time 10 https://wiki.voxelport.in/health || echo "")
+          BOT_READY=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print('up' if d.get('botReady') and (d.get('online') or d.get('ok')) else 'down')" 2>/dev/null || echo "down")
           echo "bot=$BOT_READY" >> $GITHUB_OUTPUT
-          echo "Bot health: relay=$RELAY bot=$BOT_READY"
+          echo "Bot health: bot=$BOT_READY"
 
       - name: Alert Discord if anything is down
         if: |
           steps.website.outputs.status != '200' ||
-          steps.bot.outputs.relay != 'up' ||
+          steps.relay.outputs.relay != 'up' ||
           steps.bot.outputs.bot != 'up'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           WEBSITE_STATUS="${{ steps.website.outputs.status }}"
-          RELAY_STATUS="${{ steps.bot.outputs.relay }}"
+          RELAY_STATUS="${{ steps.relay.outputs.relay }}"
           BOT_STATUS="${{ steps.bot.outputs.bot }}"
 
           MSG=""
@@ -50,14 +56,14 @@ jobs:
       - name: Alert Email if anything is down
         if: |
           steps.website.outputs.status != '200' ||
-          steps.bot.outputs.relay != 'up' ||
+          steps.relay.outputs.relay != 'up' ||
           steps.bot.outputs.bot != 'up'
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
           WEBSITE_STATUS="${{ steps.website.outputs.status }}"
-          RELAY_STATUS="${{ steps.bot.outputs.relay }}"
+          RELAY_STATUS="${{ steps.relay.outputs.relay }}"
           BOT_STATUS="${{ steps.bot.outputs.bot }}"
 
           SUBJECT="🚨 VoxelPort ALERT — Service Down"

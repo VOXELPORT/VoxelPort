@@ -21,6 +21,7 @@ public class SettingsScreen extends Screen {
     private final Screen parent;
 
     private EditBox relayField;
+    private EditBox tokenField;
     private Button testButton;
     private String statusMessage = "";
     private boolean testing = false;
@@ -37,54 +38,106 @@ public class SettingsScreen extends Screen {
         relayField = new EditBox(this.font, cx - 150, 66, 300, 20,
                 Component.literal("Relay URL"));
         relayField.setMaxLength(256);
-        relayField.setHint(Component.literal("wss://voxelport.in"));
+        relayField.setHint(Component.literal("wss://relay.voxelport.in"));
         // Pre-fill with currently saved custom URL (blank = using default)
         String saved = VoxelPortMod.getConfig().getRelayUrl();
         if (saved != null) relayField.setValue(saved);
         this.addWidget(relayField);
 
+        tokenField = new EditBox(this.font, cx - 150, 96, 300, 20,
+                Component.literal("Device Token"));
+        tokenField.setMaxLength(256);
+        // Tokens are generated automatically on first run — no Discord, no signup.
+        // This field is an advanced override; leave blank to keep the auto token.
+        tokenField.setHint(Component.literal("Auto-generated — leave blank (advanced override)"));
+        this.addWidget(tokenField);
+
+        // Relay override controls: test reachability, or reset to the default relay.
         testButton = this.addRenderableWidget(
-                Button.builder(Component.literal("Test Connection"), button -> testConnection())
-                        .bounds(cx - 150, 96, 144, 20)
+                Button.builder(Component.literal("Test"), button -> testConnection())
+                        .bounds(cx - 150, 126, 144, 20)
                         .build());
 
         this.addRenderableWidget(
-                Button.builder(Component.literal("Reset to Default"), button -> {
+                Button.builder(Component.literal("↩ Default"), button -> {
                     relayField.setValue("");
                     statusMessage = "§7Reset to default relay.";
                 })
-                        .bounds(cx + 6, 96, 144, 20)
+                        .bounds(cx + 6, 126, 144, 20)
                         .build());
 
         this.addRenderableWidget(
                 Button.builder(Component.literal("Save & Close"), button -> saveAndClose())
-                        .bounds(cx - 150, 124, 144, 20)
+                        .bounds(cx - 150, 154, 144, 20)
                         .build());
 
         this.addRenderableWidget(
                 Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreen(parent))
-                        .bounds(cx + 6, 124, 144, 20)
+                        .bounds(cx + 6, 154, 144, 20)
                         .build());
     }
 
     private void saveAndClose() {
-        String url = relayField.getValue().trim();
-        if (!url.isBlank() && !url.startsWith("wss://") && !url.startsWith("ws://")) {
-            statusMessage = "§cURL must start with wss:// or ws://";
+        String rawUrl = relayField.getValue().trim();
+        String url = RelayUrlResolver.normalizeOfficialRelayUrl(rawUrl);
+        if (!url.isBlank() && !url.startsWith("wss://")) {
+            statusMessage = "§cURL must start with wss://";
             return;
         }
+        if (!rawUrl.isBlank() && RelayUrlResolver.hasInvalidOfficialPort(rawUrl)) {
+            statusMessage = "§cUse wss://relay.voxelport.in. Player ports are for joining.";
+            return;
+        }
+        String token = tokenField.getValue().trim();
+        if (!token.isBlank() && !token.matches("^vp_[A-Za-z0-9_-]+$")) {
+            statusMessage = "§cToken must start with vp_.";
+            return;
+        }
+
+        String oldUrl = RelayUrlResolver.get();
         VoxelPortMod.getConfig().setRelayUrl(url.isBlank() ? null : url);
+        if (!token.isBlank()) {
+            VoxelPortMod.getConfig().setServerToken(token);
+        }
         VoxelPortMod.getConfig().save();
+        String newUrl = RelayUrlResolver.get();
+
+        // If the relay is running and the URL changed, restart it automatically.
+        // The universal token works on all regions — no need for the user to do anything else.
+        com.voxelport.mod.server.ServerRelayService service = VoxelPortMod.getServerRelayService();
+        if (service != null && service.isRunning() && !newUrl.equals(oldUrl)) {
+            int port = service.getSession().serverPort();
+            service.stop();
+            com.voxelport.mod.logic.VoxelPortConfig cfg = VoxelPortMod.getConfig();
+            com.voxelport.mod.server.ServerRelayService.Config relayCfg =
+                    new com.voxelport.mod.server.ServerRelayService.Config(
+                            newUrl, cfg.getServerToken(),
+                            cfg.getPublicHost(), cfg.getServerHost(),
+                            port, cfg.getMaxConnections(),
+                            cfg.isProxyProtocol(), cfg.getBlockedIps());
+            new Thread(() -> {
+                try {
+                    service.start(relayCfg);
+                } catch (Exception e) {
+                    VoxelPortMod.LOGGER.warn("VoxelPort: failed to restart relay on region switch", e);
+                }
+            }, "voxelport-region-switch").start();
+        }
+
         this.minecraft.setScreen(parent);
     }
 
     private void testConnection() {
         if (testing) return;
         String raw = relayField.getValue().trim();
-        String url = raw.isBlank() ? RelayUrlResolver.get() : raw;
+        String url = raw.isBlank() ? RelayUrlResolver.get() : RelayUrlResolver.normalizeOfficialRelayUrl(raw);
 
-        if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-            statusMessage = "§cURL must start with wss:// or ws://";
+        if (!url.startsWith("wss://")) {
+            statusMessage = "§cURL must start with wss://";
+            return;
+        }
+        if (!raw.isBlank() && RelayUrlResolver.hasInvalidOfficialPort(raw)) {
+            statusMessage = "§cUse wss://relay.voxelport.in. Player ports are for joining.";
             return;
         }
 
@@ -164,15 +217,17 @@ public class SettingsScreen extends Screen {
         gui.text(this.font, sub, cx - this.font.width(sub) / 2, 36, 0xFFA0A0A0, true);
 
         gui.text(this.font, "Relay Server URL", cx - 150, 54, 0xFFE0E0E0, true);
+        gui.text(this.font, "Device Token (auto)", cx - 150, 84, 0xFFE0E0E0, true);
 
-        String hint = "Leave blank to use the VoxelPort default relay.";
-        gui.text(this.font, hint, cx - 150, 158, 0xFF606060, true);
+        String hint = "Players join the copied public address in vanilla Multiplayer.";
+        gui.text(this.font, hint, cx - 150, 188, 0xFF606060, true);
 
         relayField.extractWidgetRenderState(gui, mouseX, mouseY, delta);
+        tokenField.extractWidgetRenderState(gui, mouseX, mouseY, delta);
 
         if (!statusMessage.isEmpty()) {
             gui.text(this.font, statusMessage,
-                    cx - this.font.width(statusMessage) / 2, 176, 0xFFFFFF55, true);
+                    cx - this.font.width(statusMessage) / 2, 206, 0xFFFFFF55, true);
         }
 
         String current = "Active: " + RelayUrlResolver.get();

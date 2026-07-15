@@ -1,9 +1,9 @@
 import WebSocket from "ws";
 import nodemailer from "nodemailer";
 
-const RELAY_URL  = "wss://voxelportrelay.qzz.io/relay";
-const BOT_URL    = "http://voxelportrelay.qzz.io:2525";
-const WEBSITE    = "https://voxelport.qzz.io";
+const RELAY_URL  = "wss://play.voxelport.in";
+const BOT_URL    = "https://wiki.voxelport.in";
+const WEBSITE    = "https://wiki.voxelport.in";
 const REPO       = process.env.REPO || "trazhub/VoxelPort";
 const GH_TOKEN   = process.env.GITHUB_TOKEN;
 const WEBHOOK    = process.env.DISCORD_WEBHOOK;
@@ -74,7 +74,7 @@ const [website, botHealth, relay, newIssues] = await Promise.all([
 
 const websiteOk     = website.status >= 200 && website.status < 400;
 const relayOk       = relay.ok;
-const botOk         = botHealth.data?.ok === true;
+const botOk         = botHealth.data?.online === true || botHealth.data?.ok === true;
 const botReady      = botHealth.data?.botReady === true;
 const activePlayers = botHealth.data?.activePlayers ?? "?";
 const allGood       = websiteOk && relayOk && botOk && botReady;
