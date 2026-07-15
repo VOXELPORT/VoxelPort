@@ -89,6 +89,12 @@ public final class ServerRelayService {
             AtomicLong assignedPort = new AtomicLong(-1);
             java.util.concurrent.atomic.AtomicReference<String> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
 
+            // Clear any stale frames from a previous session BEFORE connecting.
+            // onOpen() enqueues the "register" frame while buildAsync() is completing,
+            // so clearing here (rather than after .get()) avoids a race that could drop
+            // the register — which would leave the relay silent and time us out below.
+            sendQueue.clear();
+
             WebSocket ws = httpClient.newWebSocketBuilder()
                     .buildAsync(URI.create(cfg.relayWs()), new WebSocket.Listener() {
                         private final StringBuilder textBuffer = new StringBuilder();
@@ -143,7 +149,6 @@ public final class ServerRelayService {
                     .get(15, TimeUnit.SECONDS);
             this.config = cfg;
             this.socket = ws;
-            sendQueue.clear();
             senderThread = startSenderThread(ws);
 
             if (!readyLatch.await(15, TimeUnit.SECONDS)) {

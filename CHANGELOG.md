@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.2] - 2026-07-15
+
+### Fixed
+- **`/voxel start` intermittently failed with "Timed out waiting for relay to assign a public port."** The `register` frame is enqueued from the WebSocket `onOpen` callback, but the start routine cleared the send queue *after* connecting — a race that could delete the register frame before the sender thread transmitted it. The relay then never replied and the mod timed out. The queue is now cleared *before* connecting, so the register is always sent. (More likely to trigger on fast/low-latency relay connections.)
+
 ## [1.4.1] - 2026-07-15
 
 ### Fixed
