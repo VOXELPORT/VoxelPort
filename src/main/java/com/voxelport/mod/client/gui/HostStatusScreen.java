@@ -1,7 +1,7 @@
 package com.voxelport.mod.client.gui;
 
 import com.voxelport.mod.VoxelPortMod;
-import com.voxelport.mod.logic.HostingService;
+import com.voxelport.mod.server.ServerRelayService;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -9,9 +9,9 @@ import net.minecraft.network.chat.Component;
 
 public class HostStatusScreen extends Screen {
     private final Screen parent;
-    private final HostingService.HostSession session;
+    private final ServerRelayService.Session session;
 
-    public HostStatusScreen(Screen parent, HostingService.HostSession session) {
+    public HostStatusScreen(Screen parent, ServerRelayService.Session session) {
         super(Component.literal("VoxelPort Host Status"));
         this.parent = parent;
         this.session = session;
@@ -19,13 +19,13 @@ public class HostStatusScreen extends Screen {
 
     @Override
     protected void init() {
-        this.addRenderableWidget(Button.builder(Component.literal("Copy Room Code"), button -> {
-            this.minecraft.keyboardHandler.setClipboard(session.getCode());
+        this.addRenderableWidget(Button.builder(Component.literal("Copy Address"), button -> {
+            this.minecraft.keyboardHandler.setClipboard(session.publicAddress());
             button.setMessage(Component.literal("§aCopied!"));
         }).bounds(this.width / 2 - 102, 92, 204, 20).build());
 
-        this.addRenderableWidget(Button.builder(Component.literal("Stop Session"), button -> {
-            VoxelPortMod.getHostingService().stop();
+        this.addRenderableWidget(Button.builder(Component.literal("Stop Relay"), button -> {
+            VoxelPortMod.getServerRelayService().stop();
             this.minecraft.setScreen(this.parent);
         }).bounds(this.width / 2 - 102, 118, 204, 20).build());
 
@@ -45,22 +45,22 @@ public class HostStatusScreen extends Screen {
         gui.text(this.font, statusText,
                 this.width / 2 - this.font.width(statusText) / 2, 45, 0xFFFFFFFF, true);
 
-        String uptimeText = "Uptime: " + session.getUptimeLabel();
+        String uptimeText = "Uptime: " + session.uptimeLabel();
         gui.text(this.font, uptimeText,
                 this.width / 2 - this.font.width(uptimeText) / 2, 59, 0xFFA0A0A0, true);
 
-        int players = VoxelPortMod.getHostingService().getPlayerCount();
+        int players = VoxelPortMod.getServerRelayService().getActiveConnections();
         String playersText = "Players connected: " + players;
         gui.text(this.font, playersText,
                 this.width / 2 - this.font.width(playersText) / 2, 73, 0xFFA0A0A0, true);
 
-        String codeLabel = "Share this code with your friends:";
-        gui.text(this.font, codeLabel,
-                this.width / 2 - this.font.width(codeLabel) / 2, 180, 0xFFA0A0A0, true);
+        String addressLabel = "Share this address with your friends:";
+        gui.text(this.font, addressLabel,
+                this.width / 2 - this.font.width(addressLabel) / 2, 180, 0xFFA0A0A0, true);
 
-        String code = session.getCode();
-        gui.text(this.font, code,
-                this.width / 2 - this.font.width(code) / 2, 192, 0xFFFFFF55, true);
+        String address = session.publicAddress();
+        gui.text(this.font, address,
+                this.width / 2 - this.font.width(address) / 2, 192, 0xFFFFFF55, true);
 
         gui.text(this.font, VoxelPortMod.versionLabel(), 6, this.height - 12, 0xFF808080, true);
     }
@@ -68,7 +68,7 @@ public class HostStatusScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
-        if (!VoxelPortMod.getHostingService().isRunning()) {
+        if (!VoxelPortMod.getServerRelayService().isRunning()) {
             this.minecraft.setScreen(this.parent);
         }
     }

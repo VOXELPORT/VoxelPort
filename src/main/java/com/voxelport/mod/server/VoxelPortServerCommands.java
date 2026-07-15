@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.voxelport.mod.VoxelPortMod;
+import com.voxelport.mod.logic.RelayErrorMessages;
 import com.voxelport.mod.logic.RelayUrlResolver;
 import com.voxelport.mod.logic.VoxelPortConfig;
 import net.minecraft.commands.CommandSourceStack;
@@ -17,7 +18,13 @@ public final class VoxelPortServerCommands {
     private VoxelPortServerCommands() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("voxelport")
+        dispatcher.register(commandRoot("voxelport"));
+        dispatcher.register(commandRoot("voxel"));
+        dispatcher.register(commandRoot("vp"));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> commandRoot(String name) {
+        return Commands.literal(name)
                 .requires(source -> Commands.LEVEL_GAMEMASTERS.check(source.permissions()))
                 .then(Commands.literal("start")
                         .executes(ctx -> start(ctx.getSource(), defaultServerPort(ctx.getSource().getServer())))
@@ -35,8 +42,6 @@ public final class VoxelPortServerCommands {
                         .requires(source -> Commands.LEVEL_OWNERS.check(source.permissions()))
                         .then(Commands.argument("token", StringArgumentType.word())
                                 .executes(ctx -> token(ctx.getSource(), StringArgumentType.getString(ctx, "token")))));
-
-        dispatcher.register(root);
     }
 
     private static int start(CommandSourceStack source, int port) {
@@ -46,16 +51,24 @@ public final class VoxelPortServerCommands {
             source.sendFailure(Component.literal("VoxelPort is not initialized yet."));
             return 0;
         }
+        if (port <= 0 || port > 65535) {
+            source.sendFailure(Component.literal("No local Minecraft port is open. Open the world to LAN first, or run /voxel start <port>."));
+            return 0;
+        }
         if (service.isRunning()) {
             source.sendFailure(Component.literal("VoxelPort is already live. Address: "
                     + service.getSession().publicAddress()));
+            return 0;
+        }
+        if (service.isStarting()) {
+            source.sendFailure(Component.literal("VoxelPort is already starting."));
             return 0;
         }
 
         String token = config.getServerToken();
         if (token == null || token.isBlank()) {
             source.sendFailure(Component.literal(
-                    "No VoxelPort token set. Run /voxelport token <token> first."));
+                    "No VoxelPort token set. Run /voxel token <token> first."));
             return 0;
         }
 
@@ -65,7 +78,9 @@ public final class VoxelPortServerCommands {
                 config.getPublicHost(),
                 config.getServerHost(),
                 port,
-                config.getMaxConnections());
+                config.getMaxConnections(),
+                config.isProxyProtocol(),
+                config.getBlockedIps());
 
         source.sendSuccess(() -> Component.literal("Connecting to VoxelPort relay on local port " + port + "..."), false);
         Thread thread = new Thread(() -> {
@@ -74,8 +89,10 @@ public final class VoxelPortServerCommands {
                 source.getServer().execute(() -> source.sendSuccess(() -> Component.literal(
                         "VoxelPort is live. Players connect via: " + session.publicAddress()), true));
             } catch (Exception e) {
+                VoxelPortMod.LOGGER.warn("VoxelPort: Failed to start relay session", e);
+                String errorMessage = RelayErrorMessages.startFailure(e);
                 source.getServer().execute(() -> source.sendFailure(Component.literal(
-                        "Failed to start VoxelPort: " + e.getMessage())));
+                        errorMessage)));
             }
         }, "voxelport-server-start");
         thread.setDaemon(true);
@@ -131,10 +148,28 @@ public final class VoxelPortServerCommands {
             source.sendFailure(Component.literal("VoxelPort is not initialized yet."));
             return 0;
         }
+        
+        // SECURITY FIX: Validate token format before storing
+        // VoxelPort tokens should start with "vp_" and contain alphanumeric/dash/underscore
+        if (!isValidTokenFormat(token)) {
+            source.sendFailure(Component.literal(
+                    "Invalid token format. VoxelPort tokens start with 'vp_' and contain only letters, numbers, dashes, and underscores."));
+            return 0;
+        }
+        
         config.setServerToken(token);
         config.save();
-        source.sendSuccess(() -> Component.literal("VoxelPort token saved. Run /voxelport start to connect."), false);
+        
+        // SECURITY FIX: Don't echo the token back or show confirmation with it
+        // This prevents token exposure in logs
+        source.sendSuccess(() -> Component.literal(
+                "VoxelPort token saved securely. Run /voxel start to connect."), false);
         return 1;
+    }
+    
+    private static boolean isValidTokenFormat(String token) {
+        if (token == null || token.isEmpty()) return false;
+        return token.matches("^vp_[A-Za-z0-9_-]+$");
     }
 
     private static int defaultServerPort(MinecraftServer server) {

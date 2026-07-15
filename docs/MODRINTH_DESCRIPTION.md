@@ -1,84 +1,69 @@
-> ⚠️ **Requires Discord membership** — you must join the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW) to use this mod. The bot sends a 6-digit code to your DMs to verify your identity. No new account needed.
-
-> 🌐 **External connections** — this mod contacts `voxelportrelay.qzz.io:2525` (Discord verification & session checks) and `wss://voxelportrelay.qzz.io/relay` (game traffic routing). See the Privacy section below.
+> 🌐 **External connections** — this mod contacts `wss://relay.voxelport.in` (game traffic routing) and shows relay status from `voxelport.in`. See the Privacy section below.
 
 ---
 
-**Host your Minecraft singleplayer world over the internet with a 6-character room code. No port forwarding, no router config, no extra software.**
+**Host your Minecraft world or Fabric server over the internet. No port forwarding, no router config, no Discord, no signup.**
 
-Open the pause menu → click **Open to VoxelPort** → verify once with Discord → share the code. Your friend pastes it on the multiplayer screen and connects. That's it.
+Install the mod → open the pause menu → click **Open to VoxelPort** → share the address. Your friend pastes `play.voxelport.in:<port>` on the multiplayer screen and connects. That's it. Players don't need the mod.
 
 ---
 
 ## Features
 
-- **Relay network** — all traffic goes through VoxelPort's relay. Your home IP is never visible to players joining your world
-- **Discord DM verification** — the bot sends a 6-digit code to your DMs. Enter it once, cached for 12 hours. No account creation needed
-- **6-character room codes** — clean codes like `G0GI5Z`. No IP addresses, no long URLs
-- **Live relay ping** — tab list header shows relay latency with color coding (green / yellow / red)
-- **In-game settings** — override the relay URL from the multiplayer screen (⚙ button) without reinstalling
-- **Machine-bound auth** — verification is tied to your computer, auth files can't be copied to another machine
-- **Per-session validation** — bot checks your Discord membership before every host or join
+- **No accounts, no Discord** — a private device token is generated automatically on first launch. Nothing to request, verify, or paste
+- **Relay network** — all traffic goes through VoxelPort's relay, so your home IP is never visible to players joining your world
+- **Vanilla players** — anyone joins the public address from an unmodified Minecraft client
+- **Live relay ping** — the tab list header shows relay latency with color coding (green / yellow / red)
+- **In-game settings** — override the relay URL from the ⚙ button without reinstalling
+- **Blocklist** — drop unwanted player IPs at the relay
 - **Zero extra software** — no cloudflared, no separate apps. Just the JAR
 
 ---
 
 ## How to Use
 
-**Hosting:**
-1. Open a singleplayer world → pause menu → **Open to VoxelPort**
-2. Enter your Discord username → bot DMs you a 6-digit code → enter it in-game
-3. Room code is copied to clipboard — send it to your friend
+**Singleplayer:**
+1. Load your world → pause menu → **Open to LAN** → **Open to VoxelPort**
+2. The public address is copied to your clipboard — send it to your friends
 
-**Joining:**
-1. Multiplayer screen → **Join via VoxelPort**
-2. Paste the room code → **Connect**
+**Dedicated server:**
+1. Drop the JAR in `mods/`, restart, run `/voxelport start`
+2. Share the address from `/voxelport address`
 
 ---
 
 ## Requirements
 
 - Minecraft `>=26 <27` · Fabric Loader `>=0.18.6` · Java `>=25`
-- **Client side only** — no server installation needed
-- Must be a member of the [VoxelPort Discord server](https://discord.com/invite/5Q6BRnJYHW)
+- Works client-side (Open to LAN) or server-side (dedicated)
 
 ---
 
-## Relay Server
+## Prefer an app?
 
-The relay currently runs on **one server in India**. Expected latency overhead:
-
-- 🟢 South/Southeast Asia — under 80ms
-- 🟡 Europe / Middle East — 100–250ms
-- 🟠 North America — 250–400ms
-
-Check live relay health: [voxelport.qzz.io/status](https://voxelport.qzz.io/#/status)
-
-We plan to add more regions as the project grows. [Support the project →](https://github.com/sponsors/trazhub)
+The **VoxelPort desktop app** tunnels any local Minecraft server the same way, without installing a mod. Download it at [voxelport.in](https://www.voxelport.in).
 
 ---
 
 ## Privacy
 
-**Stored locally** in `config/voxelport/` — never uploaded except as listed below:
-- Discord username, user ID, avatar hash, login timestamp, machine fingerprint — cached for 12 hours
-- A randomly generated machine UUID — stays on your computer
+**Stored locally** in `config/voxelport/` and never uploaded:
+- An auto-generated device token (`vp_…`), encrypted at rest
 
 **Sent to VoxelPort servers:**
-- Your Discord username + machine ID → bot uses this to find and DM you
-- Your Discord user ID + machine ID → checked before each session (membership validation)
-- Raw game packets during session → proxied to the other player, never inspected
+- Your device token → used to authenticate your tunnel and assign a port
+- Raw game packets during a session → proxied to the other player, never inspected
 
-**Not collected:** passwords, email, chat, inventory, world data, analytics, crash reports.
+**Not collected:** passwords, email, Discord identity, chat, inventory, world data, analytics.
 
-Full privacy policy: [voxelport.qzz.io/legal](https://voxelport.qzz.io/#/legal)
+Full privacy policy: [voxelport.in/#/legal](https://www.voxelport.in/#/legal)
 
 ---
 
 ## Source & License
 
-Open source under MIT — [github.com/trazhub/VoxelPort](https://github.com/trazhub/VoxelPort)
+Open source under MIT — [github.com/VOXELPORT/VoxelPort](https://github.com/VOXELPORT/VoxelPort)
 
-[Discord](https://discord.com/invite/5Q6BRnJYHW) · [Status](https://voxelport.qzz.io/#/status) · [Sponsor](https://github.com/sponsors/trazhub)
+[Website](https://www.voxelport.in) · [Status](https://www.voxelport.in/#/status)
 
-*Not affiliated with Mojang, Microsoft, Fabric, or Discord.*
+*Not affiliated with Mojang, Microsoft, Fabric, or Modrinth.*

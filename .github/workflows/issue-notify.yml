@@ -12,20 +12,23 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
           ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          payload="$(jq -n \
+            --arg title "📋 New GitHub Issue #${ISSUE_NUMBER}" \
+            --arg issueTitle "$ISSUE_TITLE" \
+            --arg body "${ISSUE_BODY:-No description provided.}" \
+            --arg author "$ISSUE_AUTHOR" \
+            --arg url "$ISSUE_URL" \
+            --argjson color 5793266 \
+            '{embeds: [{title: $title, description: ("**" + $issueTitle + "**\n\nOpened by **" + $author + "**\n\n" + $body), url: $url, color: $color}]}')"
+
           curl -s -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"📋 New GitHub Issue #${ISSUE_NUMBER}\",
-                \"description\": \"**${ISSUE_TITLE}**\n\nOpened by **${ISSUE_AUTHOR}**\",
-                \"url\": \"${ISSUE_URL}\",
-                \"color\": 5793266
-              }]
-            }"
+            -d "$payload"
 
       - name: Send Email
         env:

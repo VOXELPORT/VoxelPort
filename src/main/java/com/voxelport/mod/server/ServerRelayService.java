@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
@@ -29,11 +30,16 @@ public final class ServerRelayService {
     private static final int READ_BUFFER_BYTES = 65536;
 
     private final Logger logger;
-    private final ExecutorService ioPool = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "voxelport-server-relay-io");
-        t.setDaemon(true);
-        return t;
-    });
+    // I5 fix: bounded thread pool — prevents thread exhaustion under a connection flood
+    private final ExecutorService ioPool = new ThreadPoolExecutor(
+            4, 512, 60L, TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            r -> {
+                Thread t = new Thread(r, "voxelport-server-relay-io");
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy());
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "voxelport-server-relay-ping");
         t.setDaemon(true);
@@ -45,11 +51,15 @@ public final class ServerRelayService {
             .build();
 
     private final ConcurrentHashMap<String, PlayerConn> connections = new ConcurrentHashMap<>();
+    private final AtomicBoolean starting = new AtomicBoolean(false);
     private final AtomicLong totalConnections = new AtomicLong();
     private final AtomicLong bytesFromServer = new AtomicLong();
     private final AtomicLong bytesToServer = new AtomicLong();
     private final AtomicLong relayPingMs = new AtomicLong(-1);
-    private final Object sendLock = new Object();
+    private volatile java.util.concurrent.Semaphore connectionSlots;
+
+    private final LinkedBlockingQueue<String> sendQueue = new LinkedBlockingQueue<>(8192);
+    private volatile Thread senderThread;
 
     private volatile WebSocket socket;
     private volatile Session session;
@@ -65,105 +75,126 @@ public final class ServerRelayService {
         if (session != null) {
             throw new IllegalStateException("VoxelPort relay is already running.");
         }
-        if (cfg.token() == null || cfg.token().isBlank()) {
-            throw new IllegalArgumentException("No VoxelPort server token is configured.");
+        if (!starting.compareAndSet(false, true)) {
+            throw new IllegalStateException("VoxelPort relay is already starting.");
         }
+        try {
+            if (cfg.token() == null || cfg.token().isBlank()) {
+                throw new IllegalArgumentException("No VoxelPort server token is configured.");
+            }
 
-        CountDownLatch readyLatch = new CountDownLatch(1);
-        AtomicLong assignedPort = new AtomicLong(-1);
-        java.util.concurrent.atomic.AtomicReference<String> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+            this.connectionSlots = new java.util.concurrent.Semaphore(cfg.maxConnections());
 
-        WebSocket ws = httpClient.newWebSocketBuilder()
-                .buildAsync(URI.create(cfg.relayWs()), new WebSocket.Listener() {
-                    private final StringBuilder textBuffer = new StringBuilder();
+            CountDownLatch readyLatch = new CountDownLatch(1);
+            AtomicLong assignedPort = new AtomicLong(-1);
+            java.util.concurrent.atomic.AtomicReference<String> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
 
-                    @Override
-                    public void onOpen(WebSocket webSocket) {
-                        webSocket.request(1);
-                        JsonObject register = new JsonObject();
-                        register.addProperty("type", "register");
-                        register.addProperty("token", cfg.token());
-                        sendJson(webSocket, register);
-                    }
+            WebSocket ws = httpClient.newWebSocketBuilder()
+                    .buildAsync(URI.create(cfg.relayWs()), new WebSocket.Listener() {
+                        private final StringBuilder textBuffer = new StringBuilder();
 
-                    @Override
-                    public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-                        webSocket.request(1);
-                        textBuffer.append(data);
-                        if (textBuffer.length() > MAX_FRAME_BASE64_CHARS + 4096) {
-                            textBuffer.setLength(0);
-                            errorRef.compareAndSet(null, "relay frame exceeded maximum size");
-                            readyLatch.countDown();
-                            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "frame too large");
+                        @Override
+                        public void onOpen(WebSocket webSocket) {
+                            webSocket.request(1);
+                            JsonObject register = new JsonObject();
+                            register.addProperty("type", "register");
+                            register.addProperty("token", cfg.token());
+                            if (cfg.blockedIps() != null && !cfg.blockedIps().isEmpty()) {
+                                com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+                                for (String ip : cfg.blockedIps()) arr.add(ip.trim());
+                                register.add("blocked_ips", arr);
+                            }
+                            sendJson(webSocket, register);
+                        }
+
+                        @Override
+                        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+                            webSocket.request(1);
+                            textBuffer.append(data);
+                            if (textBuffer.length() > MAX_FRAME_BASE64_CHARS + 4096) {
+                                textBuffer.setLength(0);
+                                errorRef.compareAndSet(null, "relay frame exceeded maximum size");
+                                readyLatch.countDown();
+                                webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "frame too large");
+                                return null;
+                            }
+                            if (last) {
+                                String raw = textBuffer.toString();
+                                textBuffer.setLength(0);
+                                handleFrame(webSocket, raw, assignedPort, errorRef, readyLatch);
+                            }
                             return null;
                         }
-                        if (last) {
-                            String raw = textBuffer.toString();
-                            textBuffer.setLength(0);
-                            handleFrame(webSocket, raw, assignedPort, errorRef, readyLatch);
+
+                        @Override
+                        public void onError(WebSocket webSocket, Throwable error) {
+                            errorRef.compareAndSet(null, error.getMessage());
+                            readyLatch.countDown();
+                            handleDisconnect(webSocket);
                         }
-                        return null;
-                    }
 
-                    @Override
-                    public void onError(WebSocket webSocket, Throwable error) {
-                        errorRef.compareAndSet(null, error.getMessage());
-                        readyLatch.countDown();
-                        handleDisconnect(webSocket);
-                    }
+                        @Override
+                        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+                            readyLatch.countDown();
+                            handleDisconnect(webSocket);
+                            return null;
+                        }
+                    })
+                    .get(15, TimeUnit.SECONDS);
+            this.config = cfg;
+            this.socket = ws;
+            sendQueue.clear();
+            senderThread = startSenderThread(ws);
 
-                    @Override
-                    public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-                        readyLatch.countDown();
-                        handleDisconnect(webSocket);
-                        return null;
-                    }
-                })
-                .get(15, TimeUnit.SECONDS);
-        this.config = cfg;
-        this.socket = ws;
+            if (!readyLatch.await(15, TimeUnit.SECONDS)) {
+                this.config = null;
+                this.socket = null;
+                ws.sendClose(WebSocket.NORMAL_CLOSURE, "timeout");
+                throw new IOException("Timed out waiting for relay to assign a public port.");
+            }
 
-        if (!readyLatch.await(15, TimeUnit.SECONDS)) {
-            this.config = null;
-            this.socket = null;
-            ws.sendClose(WebSocket.NORMAL_CLOSURE, "timeout");
-            throw new IOException("Timed out waiting for relay to assign a public port.");
+            String error = errorRef.get();
+            if (error != null) {
+                this.config = null;
+                this.socket = null;
+                try { ws.sendClose(WebSocket.NORMAL_CLOSURE, "error"); } catch (Exception ignored) {}
+                throw new IOException("Relay error: " + error);
+            }
+
+            int port = (int) assignedPort.get();
+            if (port <= 0 || port > 65535) {
+                this.config = null;
+                this.socket = null;
+                try { ws.sendClose(WebSocket.NORMAL_CLOSURE, "bad port"); } catch (Exception ignored) {}
+                throw new IOException("Relay did not assign a valid public port.");
+            }
+
+            this.session = new Session(cfg.serverPort(), port, cfg.publicHost() + ":" + port, Instant.now());
+            this.relayPingMs.set(-1);
+            this.lastPingSentNanos = 0L;
+
+            pingTask = scheduler.scheduleAtFixedRate(() -> {
+                WebSocket current = socket;
+                if (current == null || current.isOutputClosed()) return;
+                try {
+                    // Bug-1 fix: record timestamp AFTER a successful send so a failed
+                    // send doesn't leave lastPingSentNanos pointing at a stale cycle.
+                    sendJson(current, frame("ping"));
+                    lastPingSentNanos = System.nanoTime();
+                } catch (Exception ignored) {}
+            }, 25, 25, TimeUnit.SECONDS);
+
+            logger.info("VoxelPort server relay started. Players connect via {}", session.publicAddress());
+            return session;
+        } finally {
+            starting.set(false);
         }
-
-        String error = errorRef.get();
-        if (error != null) {
-            this.config = null;
-            this.socket = null;
-            try { ws.sendClose(WebSocket.NORMAL_CLOSURE, "error"); } catch (Exception ignored) {}
-            throw new IOException("Relay error: " + error);
-        }
-
-        int port = (int) assignedPort.get();
-        if (port <= 0 || port > 65535) {
-            this.config = null;
-            this.socket = null;
-            try { ws.sendClose(WebSocket.NORMAL_CLOSURE, "bad port"); } catch (Exception ignored) {}
-            throw new IOException("Relay did not assign a valid public port.");
-        }
-
-        this.session = new Session(cfg.serverPort(), port, cfg.publicHost() + ":" + port, Instant.now());
-        this.relayPingMs.set(-1);
-        this.lastPingSentNanos = 0L;
-
-        pingTask = scheduler.scheduleAtFixedRate(() -> {
-            WebSocket current = socket;
-            if (current == null || current.isOutputClosed()) return;
-            try {
-                lastPingSentNanos = System.nanoTime();
-                sendJson(current, frame("ping"));
-            } catch (Exception ignored) {}
-        }, 25, 25, TimeUnit.SECONDS);
-
-        logger.info("VoxelPort server relay started. Players connect via {}", session.publicAddress());
-        return session;
     }
 
     public synchronized void stop() {
+        Thread st = senderThread; senderThread = null;
+        if (st != null) st.interrupt();
+        sendQueue.clear();
         if (pingTask != null) {
             pingTask.cancel(false);
             pingTask = null;
@@ -175,12 +206,16 @@ public final class ServerRelayService {
         relayPingMs.set(-1);
         closeAllConnections();
         if (ws != null) {
-            try { ws.sendClose(WebSocket.NORMAL_CLOSURE, "Session ended"); } catch (Exception ignored) {}
+            try { ws.abort(); } catch (Exception ignored) {}
         }
     }
 
     public boolean isRunning() {
         return session != null;
+    }
+
+    public boolean isStarting() {
+        return starting.get();
     }
 
     public Session getSession() {
@@ -228,7 +263,8 @@ public final class ServerRelayService {
                 }
                 case "connect" -> {
                     String conn = optString(msg, "conn");
-                    if (conn != null) openPlayerConnection(conn);
+                    String ip = optString(msg, "ip");
+                    if (conn != null) openPlayerConnection(conn, ip);
                 }
                 case "data" -> {
                     String conn = optString(msg, "conn");
@@ -260,24 +296,49 @@ public final class ServerRelayService {
         }
     }
 
-    private void openPlayerConnection(String connId) {
+    private void openPlayerConnection(String connId, String realIp) {
         Config cfg = config;
         WebSocket ws = socket;
         if (cfg == null || ws == null) return;
-        if (connections.size() >= cfg.maxConnections()) {
+        
+        // 1.3: Enforce blocked IPs
+        if (realIp != null && !realIp.isEmpty() && cfg.blockedIps().contains(realIp)) {
+            logger.warn("VoxelPort: Rejected connection from blocked IP {}", realIp);
             sendClose(connId);
             return;
         }
 
-        PlayerConn pc = new PlayerConn();
-        PlayerConn old = connections.put(connId, pc);
-        if (old != null) teardown(old, true);
+        // 1.4: Fix max connection race using Semaphore
+        java.util.concurrent.Semaphore slots = connectionSlots;
+        if (slots == null || !slots.tryAcquire()) {
+            sendClose(connId);
+            return;
+        }
+
+        final PlayerConn[] slotHolder = new PlayerConn[1];
+        connections.compute(connId, (id, existing) -> {
+            if (existing != null) {
+                return existing;
+            }
+            PlayerConn pc = new PlayerConn();
+            slotHolder[0] = pc;
+            return pc;
+        });
+
+        PlayerConn pc = slotHolder[0];
+        if (pc == null) {
+            // Already existed (duplicate connId). We didn't add it, so release the permit we just acquired.
+            slots.release();
+            sendClose(connId);
+            return;
+        }
+
         totalConnections.incrementAndGet();
 
-        ioPool.execute(() -> runPlayerConnection(connId, pc, cfg));
+        ioPool.execute(() -> runPlayerConnection(connId, realIp, pc, cfg));
     }
 
-    private void runPlayerConnection(String connId, PlayerConn pc, Config cfg) {
+    private void runPlayerConnection(String connId, String realIp, PlayerConn pc, Config cfg) {
         Socket local = new Socket();
         try {
             synchronized (pc) {
@@ -291,6 +352,29 @@ public final class ServerRelayService {
             local.setTcpNoDelay(true);
             local.connect(new InetSocketAddress(cfg.serverHost(), cfg.serverPort()), LOCAL_CONNECT_TIMEOUT_MS);
             OutputStream out = local.getOutputStream();
+
+            if (cfg.proxyProtocol() && realIp != null && !realIp.isEmpty()) {
+                // Validate realIp is a well-formed IP address before embedding it in the
+                // PROXY header. A relay-supplied string containing CRLF or other characters
+                // would otherwise inject arbitrary bytes into the server's connection stream.
+                InetAddress addr;
+                try {
+                    addr = InetAddress.getByName(realIp);
+                } catch (java.net.UnknownHostException e) {
+                    logger.warn("VoxelPort: Rejected invalid relay-supplied IP '{}' for PROXY header", realIp);
+                    closePlayerConnection(connId, false);
+                    sendClose(connId);
+                    return;
+                }
+                // Use the canonical numeric form so no hostname or special characters survive.
+                String safeIp = addr.getHostAddress();
+                boolean isIpv6 = safeIp.contains(":");
+                String proxyHeader = "PROXY " + (isIpv6 ? "TCP6" : "TCP4") + " " + safeIp + " 127.0.0.1 " +
+                                     (local.getPort() > 0 ? local.getPort() : 65535) + " " +
+                                     cfg.serverPort() + "\r\n";
+                out.write(proxyHeader.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+                out.flush();
+            }
 
             while (true) {
                 byte[][] buffered;
@@ -326,7 +410,12 @@ public final class ServerRelayService {
                 }
             }
         } catch (Exception ignored) {
-            // Normal local disconnects are noisy and expected.
+            logger.warn("VoxelPort: bridge failed for relay connection {} from {} to {}:{}: {}",
+                    connId,
+                    realIp != null && !realIp.isBlank() ? realIp : "unknown",
+                    cfg.serverHost(),
+                    cfg.serverPort(),
+                    ignored.getMessage());
         } finally {
             connections.remove(connId, pc);
             teardown(pc, false);
@@ -385,7 +474,11 @@ public final class ServerRelayService {
 
     private void closePlayerConnection(String connId, boolean relayInitiated) {
         PlayerConn pc = connections.remove(connId);
-        if (pc != null) teardown(pc, relayInitiated);
+        if (pc != null) {
+            teardown(pc, relayInitiated);
+            java.util.concurrent.Semaphore slots = connectionSlots;
+            if (slots != null) slots.release();
+        }
     }
 
     private void sendClose(String connId) {
@@ -397,15 +490,17 @@ public final class ServerRelayService {
     }
 
     private void closeAllConnections() {
+        int count = connections.size();
         for (PlayerConn pc : connections.values()) {
             teardown(pc, false);
         }
         connections.clear();
+        java.util.concurrent.Semaphore slots = connectionSlots;
+        if (slots != null && count > 0) slots.release(count);
     }
 
     private static void teardown(PlayerConn pc, boolean relayInitiated) {
         synchronized (pc) {
-            pc.relayInitiatedClose = relayInitiated;
             pc.closed = true;
             pc.open = false;
             pc.pending.clear();
@@ -421,9 +516,36 @@ public final class ServerRelayService {
     }
 
     private void sendJson(WebSocket ws, JsonObject obj) {
-        synchronized (sendLock) {
-            ws.sendText(obj.toString(), true).join();
+        if (!sendQueue.offer(obj.toString())) {
+            logger.warn("VoxelPort: WebSocket send queue full — dropping frame");
         }
+    }
+
+    private Thread startSenderThread(WebSocket ws) {
+        Thread t = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted() && !ws.isOutputClosed()) {
+                String msg;
+                try {
+                    msg = sendQueue.poll(1, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                if (msg == null) continue;
+                try {
+                    ws.sendText(msg, true).get(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    logger.warn("VoxelPort: WebSocket send failed: {}", e.getMessage());
+                    if (ws.isOutputClosed()) break;
+                }
+            }
+        }, "voxelport-ws-sender");
+        t.setDaemon(true);
+        t.start();
+        return t;
     }
 
     private static JsonObject frame(String type) {
@@ -449,13 +571,12 @@ public final class ServerRelayService {
         OutputStream output;
         boolean open;
         boolean closed;
-        boolean relayInitiatedClose;
         final ArrayDeque<byte[]> pending = new ArrayDeque<>();
         int pendingBytes;
     }
 
     public record Config(String relayWs, String token, String publicHost, String serverHost,
-                         int serverPort, int maxConnections) {}
+                         int serverPort, int maxConnections, boolean proxyProtocol, java.util.List<String> blockedIps) {}
 
     public static final class Session {
         private final int serverPort;

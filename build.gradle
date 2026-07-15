@@ -71,15 +71,16 @@ jar {
 // remapped JAR (remapJar no longer exists as a separate task).
 modrinth {
 	token         = System.getenv("MODRINTH_TOKEN") ?: ""
-	projectId     = System.getenv("MODRINTH_PROJECT_ID") ?: ""
+	projectId     = System.getenv("MODRINTH_PROJECT_ID") ?: "voxelportmod"
 	versionNumber = project.mod_version
 	versionName   = "VoxelPort v${project.mod_version}"
 	versionType   = "release"
 	uploadFile    = jar
 	gameVersions  = [project.minecraft_version]
 	loaders       = ["fabric"]
-	changelog     = System.getenv("RELEASE_CHANGELOG") ?: "See GitHub releases for full changelog."
+	changelog     = System.getenv("RELEASE_CHANGELOG") ?: file("CHANGELOG.md").text
 	additionalFiles = [sourcesJar]
+	syncBodyFrom = file("README.md").text
 }
 
 // ─── CurseForge publishing ────────────────────────────────────────────────────

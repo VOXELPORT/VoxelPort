@@ -53,8 +53,7 @@ jobs:
           name: VoxelPort ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.notes }}
           files: |
-            build/libs/voxelport-mod-*.jar
-            build/libs/voxelport-mod-*-sources.jar
+            build/libs/VoxelPort-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

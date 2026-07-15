@@ -12,7 +12,9 @@ public class IntegratedServerTransferMixin {
     @Inject(method = "stopServer", at = @At("HEAD"))
     private void onStop(CallbackInfo ci) {
         if ((Object) this instanceof IntegratedServer) {
-            VoxelPortMod.getHostingService().stop();
+            if (VoxelPortMod.getServerRelayService() != null && VoxelPortMod.getServerRelayService().isRunning()) {
+                VoxelPortMod.getServerRelayService().stop();
+            }
         }
     }
 }

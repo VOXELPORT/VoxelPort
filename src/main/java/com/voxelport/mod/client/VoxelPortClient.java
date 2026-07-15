@@ -1,8 +1,7 @@
 package com.voxelport.mod.client;
 
 import com.voxelport.mod.VoxelPortMod;
-import com.voxelport.mod.logic.HostingService;
-import com.voxelport.mod.logic.JoinService;
+import com.voxelport.mod.server.ServerRelayService;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -10,84 +9,90 @@ import net.minecraft.client.gui.components.PlayerTabOverlay;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class VoxelPortClient implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("VoxelPort-Client");
-    private static JoinService joinService;
 
     private static final long TICK_INTERVAL_MS = 2000L;
+
+    // B5 fix: use ExecutorService for background thread lifecycle
+    private volatile ExecutorService tickExecutor;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("Initializing VoxelPort Client v{}...", VoxelPortMod.VERSION);
-        java.nio.file.Path configDir = net.fabricmc.loader.api.FabricLoader.getInstance()
-                .getConfigDir().resolve("voxelport");
-        joinService = new JoinService(configDir, LOGGER);
-        Thread tickThread = new Thread(this::clientTick, "voxelport-client-tick");
-        tickThread.setDaemon(true);
-        tickThread.start();
+        startTickThread();
     }
 
-    public static JoinService getJoinService() {
-        return joinService;
+    /** Starts the background tick thread. Guards against double-starts. */
+    private synchronized void startTickThread() {
+        if (tickExecutor != null && !tickExecutor.isShutdown()) {
+            // Already running — interrupt the old one before spawning a new one
+            tickExecutor.shutdownNow();
+        }
+        tickExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "voxelport-client-tick");
+            t.setDaemon(true);
+            return t;
+        });
+        tickExecutor.submit(this::clientTick);
     }
 
-    private void clientTick() {
-        while (true) {
+    /** Stops the background tick thread. Safe to call from any thread. */
+    public synchronized void stopTickThread() {
+        if (tickExecutor != null) {
+            tickExecutor.shutdownNow();
+            tickExecutor = null;
+        }
+    }
+
+    private void clientTick() { 
+        while (!Thread.currentThread().isInterrupted()) {
             try {
-                Thread.sleep(TICK_INTERVAL_MS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-
-            Minecraft mc = Minecraft.getInstance();
-
-            // Deliver any pending system notices
-            String notice = VoxelPortMod.consumePendingUserNotice();
-            if (notice != null) {
-                if (mc.player != null) {
-                    mc.execute(() -> {
-                        if (mc.player != null) {
-                            mc.player.sendSystemMessage(Component.literal("§8[§aVoxelPort§8] §e" + notice));
-                        }
-                    });
-                } else {
-                    VoxelPortMod.setPendingUserNotice(notice);
+                try {
+                    Thread.sleep(TICK_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
                 }
-            }
 
-            // Update tab list header with live relay stats
-            if (mc.player != null && mc.player.connection != null) {
-                mc.execute(() -> updateTabList(mc));
+                Minecraft mc = Minecraft.getInstance();
+                if (mc == null) continue; // not yet initialized
+
+                // Update tab list header with live relay stats
+                var player = mc.player;
+                if (player != null && player.connection != null) {
+                    mc.execute(() -> updateTabList(mc));
+                }
+            } catch (Exception e) {
+                // 3.1: Harden clientTick loop against unexpected exceptions
+                LOGGER.warn("Exception in client tick loop: {}", e.getMessage());
+                try { Thread.sleep(5000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
             }
         }
     }
 
     private static void updateTabList(Minecraft mc) {
-        if (mc.player == null || mc.player.connection == null) return;
+        var player = mc.player;
+        if (player == null || player.connection == null) return;
 
-        HostingService hostSvc = VoxelPortMod.getHostingService();
-        JoinService joinSvc = joinService;
+        ServerRelayService relay = VoxelPortMod.getServerRelayService();
 
         Component header = null;
-        Component footer = Component.literal("§7discord.com/invite/5Q6BRnJYHW  §8|  §7voxelport.in");
+        Component footer = Component.literal("§7voxelport.in  §8|  §7Host without port forwarding");
 
-        if (hostSvc != null && hostSvc.isRunning()) {
-            HostingService.HostSession session = hostSvc.getSession();
-            long ping = hostSvc.getRelayPingMs();
-            int players = hostSvc.getPlayerCount();
+        if (relay != null && relay.isRunning()) {
+            ServerRelayService.Session session = relay.getSession();
+            long ping = relay.getRelayPingMs();
+            int players = relay.getActiveConnections();
             String pingStr = ping >= 0 ? ping + "ms" : "…";
             String pingColor = ping < 0 ? "§7" : ping < 80 ? "§a" : ping < 150 ? "§e" : "§c";
             header = Component.literal(
-                "§a§lVoxelPort§r  §8|  §7Room: §b" + session.getCode()
+                "§a§lVoxelPort§r  §8|  §7Address: §b" + session.publicAddress()
                 + "  §8|  §7Relay: " + pingColor + pingStr
                 + "  §8|  §7Players: §b" + players);
-        } else if (joinSvc != null && joinSvc.isRunning()) {
-            long ping = joinSvc.getRelayPingMs();
-            String pingStr = ping >= 0 ? ping + "ms" : "…";
-            String pingColor = ping < 0 ? "§7" : ping < 80 ? "§a" : ping < 150 ? "§e" : "§c";
-            header = Component.literal(
-                "§a§lVoxelPort§r  §8|  §7Relay: " + pingColor + pingStr);
         }
 
         if (header != null) {
