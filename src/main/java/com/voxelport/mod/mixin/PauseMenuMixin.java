@@ -62,13 +62,13 @@ public abstract class PauseMenuMixin extends Screen {
 
                 startHostingBackground(svc, port, button);
             }
-        }).bounds(this.width / 2 - 102, this.height / 4 + 144 - 16, 154, 20).build();
+        }).bounds(this.width / 2 - 102, this.height - 28, 154, 20).build();
         hostButton.active = !svc.isStarting();
         this.addRenderableWidget(hostButton);
 
         this.addRenderableWidget(Button.builder(Component.literal("Settings"), button ->
                 this.minecraft.setScreen(new SettingsScreen(this)))
-                .bounds(this.width / 2 + 56, this.height / 4 + 144 - 16, 46, 20)
+                .bounds(this.width / 2 + 56, this.height - 28, 46, 20)
                 .build());
     }
 
