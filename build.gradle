@@ -66,6 +66,16 @@ jar {
 	}
 }
 
+// ─── Shared dist folder ───────────────────────────────────────────────────────
+// Drops every loader's built jars into one place (VoxelPortMod/dist/) so you
+// don't have to hunt through each subproject's build/libs to test a mod jar.
+tasks.register('copyToDist', Copy) {
+	from jar
+	from sourcesJar
+	into "${rootDir}/../dist"
+}
+build.finalizedBy(copyToDist)
+
 // ─── Modrinth publishing ──────────────────────────────────────────────────────
 // In Fabric Loom 1.15.5 the standard `jar` task already produces the final
 // remapped JAR (remapJar no longer exists as a separate task).
@@ -80,7 +90,7 @@ modrinth {
 	loaders       = ["fabric"]
 	changelog     = System.getenv("RELEASE_CHANGELOG") ?: file("CHANGELOG.md").text
 	additionalFiles = [sourcesJar]
-	syncBodyFrom = file("README.md").text
+	syncBodyFrom = file("docs/MODRINTH_DESCRIPTION.md").text
 }
 
 // ─── CurseForge publishing ────────────────────────────────────────────────────

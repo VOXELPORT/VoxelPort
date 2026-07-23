@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.3] - 2026-07-23
+
+### Changed
+- **Pause-menu layout:** the **Open to VoxelPort** and **Settings** buttons now sit at the bottom of the pause menu instead of overlapping other controls.
+
+### Docs
+- Revised the Modrinth store description for Content-Rules §2 (Description Clarity): the listing now leads with the mod itself, and promotion of the separate desktop app is minimized and clearly marked below the main body.
+
 ## [1.4.2] - 2026-07-15
 
 ### Fixed
