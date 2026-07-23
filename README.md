@@ -19,7 +19,7 @@ Install the mod and share a normal join address with vanilla players. No signup,
 
 VoxelPort connects a Fabric server or an Open to LAN singleplayer world to VoxelPort-operated relay infrastructure. Your game opens an outbound encrypted WebSocket connection, the relay assigns a public TCP port, and players join that address from vanilla Minecraft.
 
-Players do not need to install the mod. Prefer a desktop app instead of a mod? Grab the **VoxelPort app** from [voxelport.in](https://www.voxelport.in) — it tunnels any local server the same way.
+Players do not need to install the mod.
 
 <p align="center">
   <img src="https://traz.arge.in/how-it-works.gif" alt="Animated VoxelPort relay flow" width="900" />
@@ -127,6 +127,7 @@ Update to the latest mod release. Server mode buffers fragmented WebSocket frame
 ## Links
 
 - [Website](https://www.voxelport.in)
+- [Desktop app](https://www.voxelport.in) — a separate download that tunnels any local Minecraft server without a mod
 - [Status Page](https://www.voxelport.in/#/status)
 - [VoxelPort GitHub](https://github.com/VOXELPORT)
 

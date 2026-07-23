@@ -110,6 +110,7 @@ if (cfProjectId) {
 		mainFile.changelog      = System.getenv("RELEASE_CHANGELOG") ?: "See GitHub releases for full changelog."
 		mainFile.addModLoader   "Fabric"
 		mainFile.addGameVersion project.minecraft_version
+		mainFile.addGameVersion "Client", "Server"   // CurseForge requires an environment tag (error 1021 otherwise)
 		mainFile.addJavaVersion "Java ${targetJavaVersion}"
 		mainFile.withAdditionalFile sourcesJar
 	}
