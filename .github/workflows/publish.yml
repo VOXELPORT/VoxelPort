@@ -36,6 +36,12 @@ jobs:
       - name: Build
         run: ./gradlew build
 
+      - name: Create stable-named jar (for the website's /latest/download link)
+        run: |
+          MAIN=$(ls build/libs/VoxelPort-*.jar | grep -v -- '-sources' | head -1)
+          cp "$MAIN" build/libs/VoxelPort-Fabric.jar
+          echo "Stable jar: $(ls -l build/libs/VoxelPort-Fabric.jar)"
+
       - name: Extract changelog for this release
         id: changelog
         run: |
