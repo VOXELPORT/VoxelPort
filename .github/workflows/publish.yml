@@ -62,17 +62,3 @@ jobs:
             build/libs/VoxelPort-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to Modrinth
-        run: ./gradlew modrinth
-        env:
-          MODRINTH_TOKEN:      ${{ secrets.MODRINTH_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
-          RELEASE_CHANGELOG:   ${{ steps.changelog.outputs.notes }}
-
-      - name: Publish to CurseForge
-        run: ./gradlew publishCurseForge
-        env:
-          CURSEFORGE_TOKEN:      ${{ secrets.CURSEFORGE_TOKEN }}
-          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-          RELEASE_CHANGELOG:     ${{ steps.changelog.outputs.notes }}

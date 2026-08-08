@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.4] - 2026-08-08
+
+### Changed
+- **Distribution:** VoxelPort is now published on GitHub Releases only. Modrinth and CurseForge uploads have been removed from the release pipeline.
+
 ## [1.4.3] - 2026-07-23
 
 ### Changed
