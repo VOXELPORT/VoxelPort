@@ -1,14 +1,10 @@
-<div align="center">
-  <img src="https://pr.opop.eu.org/Frame_2.png" alt="VoxelPort" width="100">
+![VoxelPort](https://pr.opop.eu.org/Frame_2.png)
 
 # VoxelPort Fabric Mod
 
 **Host your Fabric server without port forwarding.** Install the mod and share a normal join address with vanilla players. No signup, no Discord, no token to copy — it just works.
 
-[![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://www.voxelport.in)
-[![Status](https://img.shields.io/badge/Status-Page-00FFB2?style=flat-square)](https://www.voxelport.in/#/status)
-[![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](https://github.com/VOXELPORT)
-</div>
+[![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://www.voxelport.in) [![Status](https://img.shields.io/badge/Status-Page-00FFB2?style=flat-square)](https://www.voxelport.in/#/status) [![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](https://github.com/VOXELPORT)
 
 ***
 
