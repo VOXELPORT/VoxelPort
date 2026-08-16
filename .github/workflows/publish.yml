@@ -62,3 +62,10 @@ jobs:
             build/libs/VoxelPort-*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to CurseForge
+        run: ./gradlew publishCurseForge
+        env:
+          CURSEFORGE_TOKEN:      ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          RELEASE_CHANGELOG:     ${{ steps.changelog.outputs.notes }}

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.5] - 2026-08-11
+
+### Changed
+- **Distribution:** resumed publishing to CurseForge alongside GitHub Releases. (Modrinth remains GitHub/CurseForge-only per a prior decision.)
+
 ## [1.4.4] - 2026-08-08
 
 ### Changed

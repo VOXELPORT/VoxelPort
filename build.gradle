@@ -1,6 +1,7 @@
 plugins {
 	id 'net.fabricmc.fabric-loom' version '1.15.5'
 	id 'maven-publish'
+	id 'net.darkhax.curseforgegradle' version '1.1.+'
 }
 
 version = project.mod_version
@@ -73,6 +74,34 @@ tasks.register('copyToDist', Copy) {
 	into "${rootDir}/../dist"
 }
 build.finalizedBy(copyToDist)
+
+// ─── CurseForge publishing ────────────────────────────────────────────────────
+// Task is only fully wired when CURSEFORGE_PROJECT_ID is set; otherwise it
+// registers as a stub that prints a helpful error so normal `build` always works.
+def cfProjectId = System.getenv("CURSEFORGE_PROJECT_ID") ?: ""
+def cfApiToken  = System.getenv("CURSEFORGE_TOKEN")      ?: ""
+
+if (cfProjectId) {
+	task publishCurseForge(type: net.darkhax.curseforgegradle.TaskPublishCurseForge) {
+		apiToken = cfApiToken
+
+		def mainFile = upload(cfProjectId, jar)
+		mainFile.displayName    = "VoxelPort v${project.mod_version}"
+		mainFile.releaseType    = "release"
+		mainFile.changelogType  = "markdown"
+		mainFile.changelog      = System.getenv("RELEASE_CHANGELOG") ?: "See GitHub releases for full changelog."
+		mainFile.addModLoader   "Fabric"
+		mainFile.addGameVersion project.minecraft_version
+		mainFile.addGameVersion "Client", "Server"   // CurseForge requires an environment tag (error 1021 otherwise)
+		mainFile.addJavaVersion "Java ${targetJavaVersion}"
+		mainFile.withAdditionalFile sourcesJar
+	}
+} else {
+	task publishCurseForge {
+		group = "publishing"
+		doLast { throw new GradleException("Set CURSEFORGE_PROJECT_ID and CURSEFORGE_TOKEN env vars to publish to CurseForge.") }
+	}
+}
 
 // ─── Maven publish (local / optional) ────────────────────────────────────────
 publishing {
