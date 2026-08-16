@@ -22,7 +22,7 @@ VoxelPort connects a Fabric server or an Open to LAN singleplayer world to Voxel
 Players do not need to install the mod.
 
 <p align="center">
-  <img src="https://traz.arge.in/how-it-works.gif" alt="Animated VoxelPort relay flow" width="900" />
+  <img src="https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/how-it-works.svg" alt="How VoxelPort connects a host to players through the relay" width="900" />
 </p>
 
 ---
