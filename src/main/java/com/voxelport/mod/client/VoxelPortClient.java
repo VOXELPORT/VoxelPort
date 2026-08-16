@@ -97,7 +97,7 @@ public class VoxelPortClient implements ClientModInitializer {
 
         if (header != null) {
             try {
-                PlayerTabOverlay tabList = mc.gui.getTabList();
+                PlayerTabOverlay tabList = mc.gui.hud.getTabList();
                 tabList.setHeader(header);
                 tabList.setFooter(footer);
             } catch (Exception ignored) {}

@@ -35,7 +35,7 @@ public abstract class PauseMenuMixin extends Screen {
 
         Button hostButton = Button.builder(label, button -> {
             if (svc.isRunning()) {
-                this.minecraft.setScreen(new HostStatusScreen(this, svc.getSession()));
+                this.minecraft.setScreenAndShow(new HostStatusScreen(this, svc.getSession()));
             } else if (svc.isStarting()) {
                 button.active = false;
                 button.setMessage(Component.literal("VoxelPort: Starting..."));
@@ -46,7 +46,7 @@ public abstract class PauseMenuMixin extends Screen {
             } else {
                 VoxelPortConfig config = VoxelPortMod.getConfig();
                 if (config == null || config.getServerToken() == null || config.getServerToken().isBlank()) {
-                    this.minecraft.setScreen(new SettingsScreen(this));
+                    this.minecraft.setScreenAndShow(new SettingsScreen(this));
                     return;
                 }
                 IntegratedServer server = this.minecraft.getSingleplayerServer();
@@ -67,7 +67,7 @@ public abstract class PauseMenuMixin extends Screen {
         this.addRenderableWidget(hostButton);
 
         this.addRenderableWidget(Button.builder(Component.literal("Settings"), button ->
-                this.minecraft.setScreen(new SettingsScreen(this)))
+                this.minecraft.setScreenAndShow(new SettingsScreen(this)))
                 .bounds(this.width / 2 + 56, this.height - 28, 46, 20)
                 .build());
     }

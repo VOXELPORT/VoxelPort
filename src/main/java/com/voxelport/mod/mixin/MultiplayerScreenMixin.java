@@ -19,7 +19,7 @@ public abstract class MultiplayerScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         this.addRenderableWidget(Button.builder(Component.literal("VoxelPort Settings"), button ->
-                this.minecraft.setScreen(new SettingsScreen(this)))
+                this.minecraft.setScreenAndShow(new SettingsScreen(this)))
                 .bounds(this.width / 2 - 102, 5, 204, 20)
                 .build());
     }

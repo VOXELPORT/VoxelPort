@@ -26,11 +26,11 @@ public class HostStatusScreen extends Screen {
 
         this.addRenderableWidget(Button.builder(Component.literal("Stop Relay"), button -> {
             VoxelPortMod.getServerRelayService().stop();
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.setScreenAndShow(this.parent);
         }).bounds(this.width / 2 - 102, 118, 204, 20).build());
 
         this.addRenderableWidget(Button.builder(Component.literal("Back"), button -> {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.setScreenAndShow(this.parent);
         }).bounds(this.width / 2 - 102, 146, 204, 20).build());
     }
 
@@ -69,7 +69,7 @@ public class HostStatusScreen extends Screen {
     public void tick() {
         super.tick();
         if (!VoxelPortMod.getServerRelayService().isRunning()) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.setScreenAndShow(this.parent);
         }
     }
 }

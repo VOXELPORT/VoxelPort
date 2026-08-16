@@ -72,7 +72,7 @@ public class SettingsScreen extends Screen {
                         .build());
 
         this.addRenderableWidget(
-                Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreen(parent))
+                Button.builder(Component.literal("Cancel"), button -> this.minecraft.setScreenAndShow(parent))
                         .bounds(cx + 6, 154, 144, 20)
                         .build());
     }
@@ -124,7 +124,7 @@ public class SettingsScreen extends Screen {
             }, "voxelport-region-switch").start();
         }
 
-        this.minecraft.setScreen(parent);
+        this.minecraft.setScreenAndShow(parent);
     }
 
     private void testConnection() {

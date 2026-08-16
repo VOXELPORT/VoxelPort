@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.6] - 2026-08-16
+
+### Fixed
+- **Crashed on every VoxelPort button click ("Open to VoxelPort", "Settings", and everything inside those screens).** Minecraft 26.2 renamed `Minecraft.setScreen(Screen)` to `Minecraft.setScreenAndShow(Screen)` and moved the player-list/tab-overlay accessor from `Gui.getTabList()` to `Hud.getTabList()`. The mod was still targeting 26.1.2 and calling the old methods, which no longer exist in 26.2 — every screen transition threw and crashed the game. Retargeted the build to Minecraft 26.2 and updated all 9 call sites.
+
 ## [1.4.5] - 2026-08-11
 
 ### Changed
