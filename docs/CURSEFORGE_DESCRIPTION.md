@@ -1,3 +1,17 @@
+<div align="center">
+  <img src="https://pr.opop.eu.org/Frame_2.png" alt="VoxelPort" width="100">
+
+# VoxelPort Fabric Mod
+
+**Host your Fabric server without port forwarding.** Install the mod and share a normal join address with vanilla players. No signup, no Discord, no token to copy — it just works.
+
+[![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://www.voxelport.in)
+[![Status](https://img.shields.io/badge/Status-Page-00FFB2?style=flat-square)](https://www.voxelport.in/#/status)
+[![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](https://github.com/VOXELPORT)
+</div>
+
+***
+
 ## Overview
 
 VoxelPort connects a Fabric server or an Open to LAN singleplayer world to VoxelPort-operated relay infrastructure. Your game opens an outbound encrypted WebSocket connection, the relay assigns a public TCP port, and players join that address from vanilla Minecraft.
@@ -16,7 +30,7 @@ Players do not need to install the mod.
 | Fabric Loader | 0.18.6+ |
 | Java          | 25+     |
 
-A device token is generated automatically on first launch — no Discord, no signup, nothing to request or paste.
+A device token is generated automatically on first launch — nothing to request or paste.
 
 ***
 
@@ -25,7 +39,7 @@ A device token is generated automatically on first launch — no Discord, no sig
 ### Singleplayer world
 
 1.  Install the VoxelPort mod in your Fabric client.
-2.  Load your singleplayer world.
+2.  Open Minecraft and load your singleplayer world.
 3.  Use Minecraft's **Open to LAN** button.
 4.  Press **Open to VoxelPort** from the pause menu.
 5.  Share the copied `play.voxelport.in:<assigned-port>` address.
@@ -40,22 +54,21 @@ Players joining your address do not need the mod.
 4.  Run `/voxelport start`.
 5.  Share the address shown by `/voxelport address`.
 
-The device token is created for you automatically; `/voxelport token <token>` exists only as an advanced manual override.
-
 ***
 
 ## Commands
 
-```
+```mcfunction
 /voxelport start
 /voxelport start <port>
 /voxelport status
 /voxelport address
 /voxelport stop
-/voxelport token <token>   (advanced override — not needed normally)
 ```
 
 `/voxelport start` uses the server's configured Minecraft port automatically. Use `/voxelport start <port>` only when you need to expose a different local port.
+
+The device token is managed for you; `/voxelport token <token>` still exists as an advanced override.
 
 ***
 
@@ -63,13 +76,13 @@ The device token is created for you automatically; `/voxelport token <token>` ex
 
 The mod saves server settings at:
 
-```
+```text
 config/voxelport/settings.properties
 ```
 
 Example config:
 
-```
+```properties
 server_token=vp_...        # auto-generated; do not share
 public_host=play.voxelport.in
 server_host=127.0.0.1
@@ -77,7 +90,7 @@ max_connections=200
 relay_url=wss://relay.voxelport.in
 ```
 
-Leave `relay_url` at `wss://relay.voxelport.in` unless you are testing with VoxelPort support.
+Leave `relay_url` blank (or `wss://relay.voxelport.in`) unless you are testing with VoxelPort support.
 
 ***
 
@@ -108,7 +121,8 @@ Update to the latest mod release. Server mode buffers fragmented WebSocket frame
 
 ## Links
 
-*   [Website](https://www.voxelport.in/)
+*   [Website](https://www.voxelport.in)
+*   [Desktop app](https://www.voxelport.in) — a separate download that tunnels any local Minecraft server without a mod
 *   [Status Page](https://www.voxelport.in/#/status)
 *   [VoxelPort GitHub](https://github.com/VOXELPORT)
 
@@ -118,4 +132,4 @@ Update to the latest mod release. Server mode buffers fragmented WebSocket frame
 
 MIT. See the included license file.
 
-VoxelPort is not affiliated with Mojang, Microsoft, Fabric, CurseForge, Modrinth, or Discord.
+VoxelPort is not affiliated with Mojang, Microsoft, Fabric, CurseForge, or Modrinth.
