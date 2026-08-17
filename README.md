@@ -97,6 +97,12 @@ relay_url=wss://relay.voxelport.in
 
 Leave `relay_url` blank (or `wss://relay.voxelport.in`) unless you are testing with VoxelPort support.
 
+**Setting the token without a chat command:** most server platforms (Spigot/Paper and
+derivatives) log executed console/chat commands by default, so typing
+`/voxel token <token>` can leave the token sitting in `logs/latest.log`. Set the
+`VOXELPORT_TOKEN` environment variable before starting the server instead — it takes
+priority over any saved token and is never written to disk.
+
 ---
 
 ## How It Works

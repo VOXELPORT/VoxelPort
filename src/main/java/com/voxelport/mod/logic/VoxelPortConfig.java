@@ -34,6 +34,17 @@ public final class VoxelPortConfig {
     private static final int    GCM_IV_LEN            = 12; // bytes
     private static final int    GCM_TAG_LEN           = 128; // bits
 
+    // Lets a dedicated-server operator provide the device token via the
+    // environment instead of the `/voxel token <token>` chat/console command —
+    // many server platforms (Spigot/Paper and derivatives) log executed
+    // commands to console/latest.log by default, which would otherwise leak
+    // the token into a file that isn't as carefully protected as
+    // settings.properties (see VoxelPortConfig's own file-permission/
+    // encryption handling below).
+    private static final String TOKEN_ENV_VAR = "VOXELPORT_TOKEN";
+    private static final java.util.regex.Pattern TOKEN_PATTERN =
+            java.util.regex.Pattern.compile("^vp_[A-Za-z0-9_-]{10,}$");
+
     private final Path dataFolder;
     private final Logger logger;
     private final SecretKey encryptionKey;
@@ -97,6 +108,15 @@ public final class VoxelPortConfig {
                             .map(String::trim)
                             .filter(s -> !s.isEmpty())
                             .collect(java.util.stream.Collectors.toList());
+
+            // An env-provided token takes priority for this session — it never
+            // touches disk, so it's exempt from the corrupted-backup/decrypt
+            // path above regardless of what's stored in settings.properties.
+            String envToken = System.getenv(TOKEN_ENV_VAR);
+            if (envToken != null && TOKEN_PATTERN.matcher(envToken.trim()).matches()) {
+                newServerToken = envToken.trim();
+                logger.info("VoxelPort: using device token from {} environment variable.", TOKEN_ENV_VAR);
+            }
 
             // Assign all fields together while the lock is held.
             serverToken = newServerToken;

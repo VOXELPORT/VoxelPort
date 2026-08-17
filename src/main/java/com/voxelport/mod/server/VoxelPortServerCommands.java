@@ -163,7 +163,9 @@ public final class VoxelPortServerCommands {
         // SECURITY FIX: Don't echo the token back or show confirmation with it
         // This prevents token exposure in logs
         source.sendSuccess(() -> Component.literal(
-                "VoxelPort token saved securely. Run /voxel start to connect."), false);
+                "VoxelPort token saved securely. Run /voxel start to connect. " +
+                "Tip: most server platforms log executed commands to console — set the " +
+                "VOXELPORT_TOKEN environment variable instead next time to avoid that."), false);
         return 1;
     }
     
