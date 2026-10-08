@@ -171,7 +171,7 @@ public final class VoxelPortServerCommands {
     
     private static boolean isValidTokenFormat(String token) {
         if (token == null || token.isEmpty()) return false;
-        return token.matches("^vp_[A-Za-z0-9_-]+$");
+        return token.matches("^vp_[A-Za-z0-9_-]{10,}$");
     }
 
     private static int defaultServerPort(MinecraftServer server) {

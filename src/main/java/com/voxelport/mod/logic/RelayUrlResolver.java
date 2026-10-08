@@ -8,6 +8,10 @@ public final class RelayUrlResolver {
     // serves an HTML status page and rejects the WS upgrade (handshake fails with
     // close 1006), so the path must be included or the host can never register.
     public static final String DEFAULT_RELAY_URL = "wss://relay.voxelport.in/ws";
+    // The same relay reached directly instead of through Cloudflare, which
+    // routes some Indian ISPs via Singapore (~130 ms extra). Tried first when
+    // the default relay is in use; DEFAULT_RELAY_URL is the fallback.
+    public static final String DIRECT_RELAY_URL = "wss://direct.voxelport.in:26499/ws";
 
     // User-configured override (set by VoxelPortConfig on load / settings save)
     private static volatile String override;
@@ -17,6 +21,17 @@ public final class RelayUrlResolver {
     public static String get() {
         if (override != null) return override;
         return DEFAULT_RELAY_URL;
+    }
+
+    /**
+     * Ordered URLs to try for a configured relay: the direct endpoint then the
+     * default for the official relay, or just the URL itself for a custom one.
+     */
+    public static java.util.List<String> candidates(String relayWs) {
+        if (relayWs != null && DEFAULT_RELAY_URL.equalsIgnoreCase(relayWs.trim())) {
+            return java.util.List.of(DIRECT_RELAY_URL, DEFAULT_RELAY_URL);
+        }
+        return java.util.List.of(relayWs);
     }
 
     public static boolean isDefaultRelayUrl(String url) {

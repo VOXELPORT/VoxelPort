@@ -44,6 +44,9 @@ public final class VoxelPortConfig {
     private static final String TOKEN_ENV_VAR = "VOXELPORT_TOKEN";
     private static final java.util.regex.Pattern TOKEN_PATTERN =
             java.util.regex.Pattern.compile("^vp_[A-Za-z0-9_-]{10,}$");
+    // Upper bound for max_connections read from settings.properties, so a
+    // hand-edited or tampered file can't request an unbounded number of slots.
+    private static final int MAX_CONFIG_CONNECTIONS = 256;
 
     private final Path dataFolder;
     private final Logger logger;
@@ -97,9 +100,9 @@ public final class VoxelPortConfig {
                 }
             }
 
-            String newPublicHost = props.getProperty("public_host", publicHost).trim();
-            String newServerHost = props.getProperty("server_host", serverHost).trim();
-            int newMaxConnections = parsePositiveInt(props.getProperty("max_connections"), maxConnections);
+            String newPublicHost = sanitizeHostLabel(props.getProperty("public_host", publicHost), publicHost);
+            String newServerHost = sanitizeHostLabel(props.getProperty("server_host", serverHost), serverHost);
+            int newMaxConnections = parseBoundedPositiveInt(props.getProperty("max_connections"), maxConnections, MAX_CONFIG_CONNECTIONS);
             boolean newProxyProtocol = Boolean.parseBoolean(props.getProperty("proxy_protocol", "false").trim());
             String blocked = props.getProperty("blocked_ips", "").trim();
             java.util.List<String> newBlockedIps = blocked.isEmpty()
@@ -116,6 +119,14 @@ public final class VoxelPortConfig {
             if (envToken != null && TOKEN_PATTERN.matcher(envToken.trim()).matches()) {
                 newServerToken = envToken.trim();
                 logger.info("VoxelPort: using device token from {} environment variable.", TOKEN_ENV_VAR);
+            }
+
+            // A stored token that doesn't match the expected shape is dropped
+            // rather than sent to the relay; a fresh one is generated later.
+            if (!newServerToken.isBlank() && !TOKEN_PATTERN.matcher(newServerToken).matches()) {
+                logger.warn("Ignoring stored VoxelPort token with invalid format.");
+                newServerToken = "";
+                newCorruptedBackup = null;
             }
 
             // Assign all fields together while the lock is held.
@@ -219,7 +230,7 @@ public final class VoxelPortConfig {
             }
 
             if (scheme.equalsIgnoreCase("ws")) {
-                if (!isPrivateOrLocalIp(host)) {
+                if (!isPrivateOrLocalLiteral(host)) {
                     logger.warn("Insecure ws:// scheme is only permitted for localhost/LAN. For remote relays, use wss://: {}", url);
                     this.relayUrl = "";
                     return;
@@ -241,20 +252,41 @@ public final class VoxelPortConfig {
         }
     }
     
-    private boolean isPrivateOrLocalIp(String host) {
+    /**
+     * True only for IP <em>literals</em> in private/loopback/link-local ranges
+     * (or "localhost"). Hostnames are never resolved here: a DNS name that
+     * resolves to a LAN address today could be repointed later, so ws:// is
+     * only allowed when the address itself is written out.
+     */
+    private boolean isPrivateOrLocalLiteral(String host) {
         // Strip IPv6 brackets before parsing
         String bare = (host.startsWith("[") && host.endsWith("]"))
                 ? host.substring(1, host.length() - 1) : host;
-        try {
-            java.net.InetAddress addr = java.net.InetAddress.getByName(bare);
-            return addr.isLoopbackAddress()      // 127.x.x.x, ::1
-                    || addr.isSiteLocalAddress() // 10.x, 172.16-31.x, 192.168.x, fc00::/7
-                    || addr.isLinkLocalAddress() // 169.254.x, fe80::/10
-                    || addr.isAnyLocalAddress(); // 0.0.0.0, ::
-        } catch (java.net.UnknownHostException ignored) {
-            // Unresolvable hostnames are not considered private
+        if (bare.equalsIgnoreCase("localhost")) return true;
+
+        Integer[] ipv4 = parseIpv4Literal(bare);
+        if (ipv4 != null) {
+            int a = ipv4[0], b = ipv4[1];
+            return a == 0 || a == 10 || a == 127               // this-host, 10/8, loopback
+                    || (a == 172 && b >= 16 && b <= 31)       // 172.16/12
+                    || (a == 192 && b == 168)                 // 192.168/16
+                    || (a == 169 && b == 254);                // link-local
         }
-        return host.equalsIgnoreCase("localhost");
+
+        // IPv6 literal: only hex digits, colons, dots (v4-mapped) and a zone id,
+        // so getByName parses it without a DNS lookup.
+        if (bare.indexOf(':') >= 0 && bare.matches("^[0-9A-Fa-f:.%]+$")) {
+            try {
+                java.net.InetAddress addr = java.net.InetAddress.getByName(bare);
+                return addr.isLoopbackAddress()      // ::1
+                        || addr.isSiteLocalAddress() // fec0::/10
+                        || addr.isLinkLocalAddress() // fe80::/10
+                        || addr.isAnyLocalAddress(); // ::
+            } catch (java.net.UnknownHostException ignored) {
+                // Malformed literal — not private
+            }
+        }
+        return false;
     }
 
     public String getServerToken() {
@@ -262,7 +294,11 @@ public final class VoxelPortConfig {
     }
 
     public void setServerToken(String token) {
-        this.serverToken = (token == null) ? "" : token.trim();
+        String trimmed = (token == null) ? "" : token.trim();
+        if (!trimmed.isEmpty() && !TOKEN_PATTERN.matcher(trimmed).matches()) {
+            throw new IllegalArgumentException("Invalid VoxelPort token format.");
+        }
+        this.serverToken = trimmed;
         this.corruptedTokenBackup = null;
     }
 
@@ -306,14 +342,44 @@ public final class VoxelPortConfig {
         return blockedIps;
     }
 
-    private static int parsePositiveInt(String value, int fallback) {
+    private static int parseBoundedPositiveInt(String value, int fallback, int max) {
         if (value == null || value.isBlank()) return fallback;
         try {
             int parsed = Integer.parseInt(value.trim());
-            return parsed > 0 ? parsed : fallback;
+            return (parsed > 0 && parsed <= max) ? parsed : fallback;
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    /** Rejects empty, over-long (>253, the DNS limit) or whitespace/control-char host values. */
+    private static String sanitizeHostLabel(String value, String fallback) {
+        String trimmed = (value == null) ? "" : value.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 253) return fallback;
+        for (int i = 0; i < trimmed.length(); i++) {
+            char ch = trimmed.charAt(i);
+            if (Character.isISOControl(ch) || Character.isWhitespace(ch)) return fallback;
+        }
+        return trimmed;
+    }
+
+    /** Parses a strict dotted-quad IPv4 literal (no octal/hex/short forms), or returns null. */
+    private static Integer[] parseIpv4Literal(String host) {
+        String[] parts = host.split("\\.", -1);
+        if (parts.length != 4) return null;
+        Integer[] parsed = new Integer[4];
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].isEmpty() || parts[i].length() > 3) return null;
+            int n = 0;
+            for (int j = 0; j < parts[i].length(); j++) {
+                char ch = parts[i].charAt(j);
+                if (ch < '0' || ch > '9') return null;
+                n = n * 10 + (ch - '0');
+            }
+            if (n > 255) return null;
+            parsed[i] = n;
+        }
+        return parsed;
     }
 
     private static void setSecureDirectoryPermissions(Path path) {

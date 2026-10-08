@@ -89,7 +89,7 @@ public class SettingsScreen extends Screen {
             return;
         }
         String token = tokenField.getValue().trim();
-        if (!token.isBlank() && !token.matches("^vp_[A-Za-z0-9_-]+$")) {
+        if (!token.isBlank() && !token.matches("^vp_[A-Za-z0-9_-]{10,}$")) {
             statusMessage = "§cToken must start with vp_.";
             return;
         }

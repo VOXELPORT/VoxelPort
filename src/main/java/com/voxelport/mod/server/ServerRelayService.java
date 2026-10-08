@@ -28,6 +28,9 @@ public final class ServerRelayService {
     private static final int MAX_DECODED_FRAME_BYTES = (MAX_FRAME_BASE64_CHARS / 4) * 3;
     private static final int LOCAL_CONNECT_TIMEOUT_MS = 5000;
     private static final int READ_BUFFER_BYTES = 65536;
+    // Connect timeout for a relay candidate that has a fallback behind it, so a
+    // network that silently drops the direct port doesn't stall hosting for long.
+    private static final int DIRECT_CONNECT_TIMEOUT_SECONDS = 5;
 
     private final Logger logger;
     // I5 fix: bounded thread pool — prevents thread exhaustion under a connection flood
@@ -95,58 +98,92 @@ public final class ServerRelayService {
             // the register — which would leave the relay silent and time us out below.
             sendQueue.clear();
 
-            WebSocket ws = httpClient.newWebSocketBuilder()
-                    .buildAsync(URI.create(cfg.relayWs()), new WebSocket.Listener() {
-                        private final StringBuilder textBuffer = new StringBuilder();
-
-                        @Override
-                        public void onOpen(WebSocket webSocket) {
-                            webSocket.request(1);
-                            JsonObject register = new JsonObject();
-                            register.addProperty("type", "register");
-                            register.addProperty("token", cfg.token());
-                            if (cfg.blockedIps() != null && !cfg.blockedIps().isEmpty()) {
-                                com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
-                                for (String ip : cfg.blockedIps()) arr.add(ip.trim());
-                                register.add("blocked_ips", arr);
+            // The default relay is tried directly first (bypassing Cloudflare's
+            // sometimes far-away edge), falling back to the default URL if the
+            // direct port is unreachable from this network.
+            java.util.List<String> candidates = com.voxelport.mod.logic.RelayUrlResolver.candidates(cfg.relayWs());
+            WebSocket ws = null;
+            for (int attempt = 0; attempt < candidates.size(); attempt++) {
+                String candidateUrl = candidates.get(attempt);
+                boolean hasFallback = attempt < candidates.size() - 1;
+                // Set when this attempt is given up on; a connection that still
+                // completes afterwards must not queue a register or signal readiness.
+                AtomicBoolean abandoned = new AtomicBoolean(false);
+                CompletableFuture<WebSocket> pending = httpClient.newWebSocketBuilder()
+                        .connectTimeout(Duration.ofSeconds(hasFallback ? DIRECT_CONNECT_TIMEOUT_SECONDS : 15))
+                        .buildAsync(URI.create(candidateUrl), new WebSocket.Listener() {
+                            private final StringBuilder textBuffer = new StringBuilder();
+    
+                            @Override
+                            public void onOpen(WebSocket webSocket) {
+                                synchronized (abandoned) {
+                                    if (abandoned.get()) {
+                                        webSocket.abort();
+                                        return;
+                                    }
+                                    webSocket.request(1);
+                                    JsonObject register = new JsonObject();
+                                    register.addProperty("type", "register");
+                                    register.addProperty("token", cfg.token());
+                                    if (cfg.blockedIps() != null && !cfg.blockedIps().isEmpty()) {
+                                        com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+                                        for (String ip : cfg.blockedIps()) arr.add(ip.trim());
+                                        register.add("blocked_ips", arr);
+                                    }
+                                    sendJson(webSocket, register);
+                                }
                             }
-                            sendJson(webSocket, register);
-                        }
-
-                        @Override
-                        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-                            webSocket.request(1);
-                            textBuffer.append(data);
-                            if (textBuffer.length() > MAX_FRAME_BASE64_CHARS + 4096) {
-                                textBuffer.setLength(0);
-                                errorRef.compareAndSet(null, "relay frame exceeded maximum size");
-                                readyLatch.countDown();
-                                webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "frame too large");
+    
+                            @Override
+                            public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+                                if (abandoned.get()) return null;
+                                webSocket.request(1);
+                                textBuffer.append(data);
+                                if (textBuffer.length() > MAX_FRAME_BASE64_CHARS + 4096) {
+                                    textBuffer.setLength(0);
+                                    errorRef.compareAndSet(null, "relay frame exceeded maximum size");
+                                    readyLatch.countDown();
+                                    webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "frame too large");
+                                    return null;
+                                }
+                                if (last) {
+                                    String raw = textBuffer.toString();
+                                    textBuffer.setLength(0);
+                                    handleFrame(webSocket, raw, assignedPort, errorRef, readyLatch);
+                                }
                                 return null;
                             }
-                            if (last) {
-                                String raw = textBuffer.toString();
-                                textBuffer.setLength(0);
-                                handleFrame(webSocket, raw, assignedPort, errorRef, readyLatch);
+    
+                            @Override
+                            public void onError(WebSocket webSocket, Throwable error) {
+                                if (abandoned.get()) return;
+                                errorRef.compareAndSet(null, error.getMessage());
+                                readyLatch.countDown();
+                                handleDisconnect(webSocket);
                             }
-                            return null;
-                        }
-
-                        @Override
-                        public void onError(WebSocket webSocket, Throwable error) {
-                            errorRef.compareAndSet(null, error.getMessage());
-                            readyLatch.countDown();
-                            handleDisconnect(webSocket);
-                        }
-
-                        @Override
-                        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-                            readyLatch.countDown();
-                            handleDisconnect(webSocket);
-                            return null;
-                        }
-                    })
-                    .get(15, TimeUnit.SECONDS);
+    
+                            @Override
+                            public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+                                if (abandoned.get()) return null;
+                                readyLatch.countDown();
+                                handleDisconnect(webSocket);
+                                return null;
+                            }
+                        });
+                try {
+                    ws = pending.get(hasFallback ? DIRECT_CONNECT_TIMEOUT_SECONDS + 1 : 15, TimeUnit.SECONDS);
+                    break;
+                } catch (ExecutionException | TimeoutException e) {
+                    if (!hasFallback) throw e;
+                    synchronized (abandoned) {
+                        abandoned.set(true);
+                        sendQueue.clear();
+                    }
+                    pending.thenAccept(WebSocket::abort);
+                    logger.info("VoxelPort: could not reach {} ({}), falling back to {}",
+                            candidateUrl, e.getClass().getSimpleName(), candidates.get(attempt + 1));
+                }
+            }
             this.config = cfg;
             this.socket = ws;
             senderThread = startSenderThread(ws);

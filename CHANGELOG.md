@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.8] - 2026-10-08
+
+### Changed
+- **Lower relay latency.** With the default relay, the mod now connects directly to `wss://direct.voxelport.in:26499` first, skipping Cloudflare, whose edge can route Indian ISPs via Singapore (~150 ms relay ping instead of ~20 ms). If that port is unreachable (e.g. a restrictive network), it falls back to `wss://relay.voxelport.in` within about 5 seconds. Custom relay URLs are unaffected.
+
+## [1.4.7] - 2026-10-08
+
+### Security
+- **Stricter device-token validation.** Tokens must now be `vp_` followed by at least 10 URL-safe characters, in the Settings screen, `/voxel token`, and `VoxelPortConfig.setServerToken` (which now rejects malformed values). A stored token that fails this check is ignored with a warning and a fresh one is generated.
+- **`ws://` LAN exception only applies to IP literals.** Insecure `ws://` relay URLs were allowed for any hostname that *resolved* to a private address, which a DNS change could later turn into a remote host. Only `localhost` and literal private/loopback/link-local IPs now qualify, and no DNS lookup is made.
+- **Bounded config values.** `max_connections` from `settings.properties` is capped at 256, and `public_host`/`server_host` values that are empty, over 253 characters, or contain whitespace/control characters fall back to defaults.
+
 ## [1.4.6] - 2026-08-16
 
 ### Fixed

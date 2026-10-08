@@ -1,3 +1,9 @@
+> [!WARNING]
+> **This mod is discontinued.** VoxelPort is now a desktop app only — it hosts any Minecraft Java server (including Fabric servers and modpacks), installs the right Java for you, and uses the same relay.
+> **[Get the VoxelPort app →](https://github.com/VOXELPORT/VoxelPort-App/releases/latest)** · [voxelport.in](https://voxelport.in)
+>
+> Existing mod releases keep working against the relay, but they will not receive updates. This repository is archived (read-only).
+
 <div align="center">
 
 <img src="https://pr.opop.eu.org/Frame_2.png" width="100" alt="VoxelPort" />
