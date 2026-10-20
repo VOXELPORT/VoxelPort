@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://pr.opop.eu.org/Frame_2.png" width="100" alt="VoxelPort" />
+<img src="https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/banner.svg" alt="VoxelPort Fabric Mod: open your Minecraft world to friends in one click" width="100%" />
 
 # VoxelPort Fabric Mod
 

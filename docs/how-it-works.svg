@@ -1,58 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" width="900" height="520" font-family="'JetBrains Mono', ui-monospace, monospace">
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="rgba(255,255,255,.35)" />
-    </marker>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" width="1000" height="520" role="img" aria-label="How VoxelPort works: your game connects out to the closest relay, which gives players a public address">
+  <defs><pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><rect width="3" height="3" x="12" y="12" fill="#E8DCC5"/></pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#15120F"/></marker>
   </defs>
+  <rect width="1000" height="520" fill="#F3EBDC"/>
+  <rect width="1000" height="520" fill="url(#dots)"/>
+  <rect x="4" y="4" width="992" height="512" fill="none" stroke="#15120F" stroke-width="5"/>
 
-  <rect x="1" y="1" width="898" height="518" rx="18" fill="#0A0A0A" stroke="rgba(255,255,255,.09)" />
+  <text x="500" y="62" text-anchor="middle" font-family="Bangers, Impact, 'Arial Black', system-ui, sans-serif" font-size="46" letter-spacing="1.5" fill="#FFFBF2" stroke="#15120F" stroke-width="9" stroke-linejoin="round" paint-order="stroke">HOW VOXELPORT WORKS</text>
+  <text x="500" y="92" text-anchor="middle" font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="17" fill="#3A332B">Your game connects OUT. Nothing has to come in through your router.</text>
 
-  <text x="450" y="52" text-anchor="middle" font-size="26" font-weight="700" letter-spacing=".2">
-    <tspan fill="#ffffff">How </tspan><tspan fill="#00FFB2">VoxelPort</tspan><tspan fill="#ffffff"> Connects Your Server</tspan>
-  </text>
-  <text x="450" y="76" text-anchor="middle" font-size="12.5" fill="#8a8a8a" letter-spacing=".2">
-    Device token is generated automatically on first launch — no signup, no manual registration step.
-  </text>
+  <rect x="46" y="176" width="250" height="160" fill="#15120F"/>
+  <rect x="40" y="170" width="250" height="160" fill="#5FAE3B" stroke="#15120F" stroke-width="3"/>
+  <text x="165" y="206" text-anchor="middle" font-family="Bangers, Impact, 'Arial Black', system-ui, sans-serif" font-size="30" letter-spacing="1" fill="#FFFBF2">YOU (HOST)</text>
+  <text x="165" y="232" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">Open to LAN world</text>
+  <text x="165" y="253" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">or Fabric server</text>
+  <text x="165" y="274" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">+ VoxelPort mod</text>
 
-  <!-- HOST -->
-  <rect x="388" y="104" width="124" height="54" rx="11" fill="rgba(176,132,245,.10)" stroke="#B084F5" stroke-width="1.4" />
-  <text x="450" y="127" text-anchor="middle" font-size="15" font-weight="700" fill="#B084F5" letter-spacing=".5">HOST</text>
-  <text x="450" y="144" text-anchor="middle" font-size="9.5" fill="#8a8a8a" letter-spacing=".3">app · mod · server</text>
+  <rect x="381" y="146" width="250" height="100" fill="#15120F"/>
+  <rect x="375" y="140" width="250" height="100" fill="#FFFBF2" stroke="#15120F" stroke-width="3"/>
+  <text x="500" y="176" text-anchor="middle" font-family="Bangers, Impact, 'Arial Black', system-ui, sans-serif" font-size="30" letter-spacing="1" fill="#15120F">INDIA RELAY</text>
+  <text x="500" y="202" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">play.voxelport.in</text>
+  <rect x="381" y="276" width="250" height="100" fill="#15120F"/>
+  <rect x="375" y="270" width="250" height="100" fill="#FFFBF2" stroke="#15120F" stroke-width="3"/>
+  <text x="500" y="306" text-anchor="middle" font-family="Bangers, Impact, 'Arial Black', system-ui, sans-serif" font-size="30" letter-spacing="1" fill="#15120F">EUROPE RELAY</text>
+  <text x="500" y="332" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">play-eu.voxelport.in</text>
+  <text x="500" y="408" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">The mod measures both and connects to the closer one (dotted = the other).</text>
 
-  <!-- HOST -> RELAY -->
-  <line x1="450" y1="158" x2="450" y2="222" stroke="rgba(255,255,255,.28)" stroke-width="1.4" marker-end="url(#arrow)" />
-  <text x="466" y="194" font-size="10.5" fill="#9a9a9a">opens outbound WSS,</text>
-  <text x="466" y="207" font-size="10.5" fill="#9a9a9a">sends device token</text>
+  <rect x="716" y="176" width="250" height="160" fill="#15120F"/>
+  <rect x="710" y="170" width="250" height="160" fill="#43C8D8" stroke="#15120F" stroke-width="3"/>
+  <text x="835" y="206" text-anchor="middle" font-family="Bangers, Impact, 'Arial Black', system-ui, sans-serif" font-size="30" letter-spacing="1" fill="#15120F">YOUR FRIENDS</text>
+  <text x="835" y="232" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">Plain Minecraft</text>
+  <text x="835" y="253" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">no mod, no app</text>
+  <text x="835" y="274" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="15" font-weight="700" fill="#3A332B">no account</text>
 
-  <!-- RELAY -->
-  <rect x="384" y="226" width="132" height="62" rx="12" fill="rgba(0,255,178,.10)" stroke="#00FFB2" stroke-width="1.8" />
-  <text x="450" y="253" text-anchor="middle" font-size="17" font-weight="700" fill="#00FFB2" letter-spacing=".5">RELAY</text>
-  <text x="450" y="270" text-anchor="middle" font-size="10" fill="#8a8a8a" letter-spacing=".3">play.voxelport.in</text>
+  <!-- host -> relay (outbound) -->
+  <path d="M296 215 C 330 190, 340 190, 368 190" fill="none" stroke="#15120F" stroke-width="4" marker-end="url(#ah)"/>
+  <path d="M296 285 C 330 320, 340 320, 368 320" fill="none" stroke="#15120F" stroke-width="4" stroke-dasharray="3 9" stroke-linecap="round" marker-end="url(#ah)"/>
+  <circle cx="332" cy="168" r="17" fill="#F6CB2F" stroke="#15120F" stroke-width="3"/><text x="332" y="174" text-anchor="middle" font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="18" fill="#15120F">1</text>
 
-  <!-- RELAY -> players (fan out) -->
-  <line x1="450" y1="288" x2="180" y2="392" stroke="rgba(255,255,255,.28)" stroke-width="1.4" marker-end="url(#arrow)" />
-  <line x1="450" y1="288" x2="450" y2="392" stroke="rgba(255,255,255,.28)" stroke-width="1.4" marker-end="url(#arrow)" />
-  <line x1="450" y1="288" x2="720" y2="392" stroke="rgba(255,255,255,.28)" stroke-width="1.4" marker-end="url(#arrow)" />
-  <text x="450" y="322" text-anchor="middle" font-size="10.5" fill="#9a9a9a">assigns a public TCP port · bridges traffic</text>
+  <!-- relay -> friends -->
+  <path d="M632 190 C 665 190, 675 215, 703 215" fill="none" stroke="#15120F" stroke-width="4" marker-end="url(#ah)"/>
+  <path d="M632 320 C 665 320, 675 285, 703 285" fill="none" stroke="#15120F" stroke-width="4" stroke-dasharray="3 9" stroke-linecap="round" marker-end="url(#ah)"/>
+  <circle cx="668" cy="168" r="17" fill="#F6CB2F" stroke="#15120F" stroke-width="3"/><text x="668" y="174" text-anchor="middle" font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="18" fill="#15120F">3</text>
 
-  <!-- Players -->
-  <g>
-    <rect x="110" y="396" width="140" height="56" rx="11" fill="rgba(255,79,163,.08)" stroke="#FF4FA3" stroke-width="1.3" />
-    <text x="180" y="420" text-anchor="middle" font-size="13" font-weight="700" fill="#FF4FA3" letter-spacing=".4">PLAYER</text>
-    <text x="180" y="437" text-anchor="middle" font-size="9" fill="#8a8a8a">vanilla client</text>
-  </g>
-  <g>
-    <rect x="380" y="396" width="140" height="56" rx="11" fill="rgba(255,216,74,.08)" stroke="#FFD84A" stroke-width="1.3" />
-    <text x="450" y="420" text-anchor="middle" font-size="13" font-weight="700" fill="#FFD84A" letter-spacing=".4">PLAYER</text>
-    <text x="450" y="437" text-anchor="middle" font-size="9" fill="#8a8a8a">vanilla client</text>
-  </g>
-  <g>
-    <rect x="650" y="396" width="140" height="56" rx="11" fill="rgba(79,216,255,.08)" stroke="#4FD8FF" stroke-width="1.3" />
-    <text x="720" y="420" text-anchor="middle" font-size="13" font-weight="700" fill="#4FD8FF" letter-spacing=".4">PLAYER</text>
-    <text x="720" y="437" text-anchor="middle" font-size="9" fill="#8a8a8a">vanilla client</text>
-  </g>
+  <circle cx="500" cy="122" r="17" fill="#F6CB2F" stroke="#15120F" stroke-width="3"/><text x="500" y="128" text-anchor="middle" font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="18" fill="#15120F">2</text>
 
-  <text x="450" y="492" text-anchor="middle" font-size="12" fill="#8a8a8a" letter-spacing=".4">
-    vanilla minecraft · no mods required to join · your home IP is never exposed
-  </text>
+  <rect x="60" y="440" width="880" height="52" fill="#15120F" transform="translate(5 5)"/>
+  <rect x="60" y="440" width="880" height="52" fill="#FFFBF2" stroke="#15120F" stroke-width="3"/>
+  <text x="500" y="462" text-anchor="middle" font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="700" font-size="15" fill="#15120F">1 The mod opens an outbound secure connection  ·  2 The relay assigns a public port  ·  3 Friends join that address</text>
+  <text x="500" y="482" text-anchor="middle" font-family="'Courier Prime', 'Courier New', ui-monospace, monospace" font-size="14" font-weight="700" fill="#6B6052">The relay is a bridge, not a game server. Your world stays on your computer.</text>
 </svg>
