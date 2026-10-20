@@ -48,7 +48,7 @@ Players joining your address do not need the mod.
 2.  Put the VoxelPort mod JAR in your server's `mods/` folder.
 3.  Restart the server.
 4.  Run `/voxelport start`.
-5.  Share the address shown by `/voxelport address`.
+5.  Share the address VoxelPort prints (it is also in `/voxelport status`).
 
 ***
 
@@ -58,13 +58,12 @@ Players joining your address do not need the mod.
 /voxelport start
 /voxelport start <port>
 /voxelport status
-/voxelport address
 /voxelport stop
 ```
 
 `/voxelport start` uses the server's configured Minecraft port automatically. Use `/voxelport start <port>` only when you need to expose a different local port.
 
-The device token is managed for you; `/voxelport token <token>` still exists as an advanced override.
+There is nothing to set up: VoxelPort creates a private device token for you on first launch.
 
 ***
 
@@ -108,7 +107,7 @@ The relay is a bridge, not a game server. Your world, mods, and player data stay
 Make sure your host allows outbound HTTPS/WSS traffic to `relay.voxelport.in` on port `443`.
 
 **Players cannot join**
-Run `/voxelport status` or `/voxelport address`, then make sure players are joining the public address shown there.
+Run `/voxelport status`, then make sure players are joining the public address shown there.
 
 **Disconnects with compression or packet errors**
 Update to the latest mod release. Server mode buffers fragmented WebSocket frames and serializes relay writes to prevent packet-stream corruption.

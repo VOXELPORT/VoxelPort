@@ -14,7 +14,6 @@ Install the mod, use Minecraft's **Open to LAN**, then click **Open to VoxelPort
 - **Vanilla players** — anyone joins the public address from an unmodified Minecraft client.
 - **Singleplayer or dedicated server** — works client-side (Open to LAN) or on a Fabric server (`/voxelport start`).
 - **Live relay ping** — the tab-list header shows relay latency, color-coded (green / yellow / red).
-- **In-game settings** — change the relay URL from the ⚙ button without reinstalling.
 - **IP blocklist** — drop unwanted player connections at the relay.
 
 ---
@@ -27,7 +26,7 @@ Install the mod, use Minecraft's **Open to LAN**, then click **Open to VoxelPort
 
 **Dedicated server**
 1. Put the JAR in your server's `mods/` folder and restart.
-2. Run `/voxelport start`, then share the address from `/voxelport address`.
+2. Run `/voxelport start`, then share the address it prints.
 
 Players joining your address do **not** need the mod.
 
@@ -38,7 +37,6 @@ Players joining your address do **not** need the mod.
 ```
 /voxelport start [port]
 /voxelport status
-/voxelport address
 /voxelport stop
 ```
 

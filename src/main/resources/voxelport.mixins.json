@@ -9,8 +9,7 @@
   ],
   "client": [
     "IntegratedServerTransferMixin",
-    "PauseMenuMixin",
-    "MultiplayerScreenMixin"
+    "PauseMenuMixin"
   ],
   "injectors": {
     "defaultRequire": 1

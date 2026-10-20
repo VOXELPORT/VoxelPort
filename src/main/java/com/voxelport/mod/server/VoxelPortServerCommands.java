@@ -2,7 +2,6 @@ package com.voxelport.mod.server;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.voxelport.mod.VoxelPortMod;
 import com.voxelport.mod.logic.RelayErrorMessages;
@@ -34,14 +33,7 @@ public final class VoxelPortServerCommands {
                         .executes(ctx -> stop(ctx.getSource())))
                 .then(Commands.literal("status")
                         .executes(ctx -> status(ctx.getSource())))
-                .then(Commands.literal("address")
-                        .executes(ctx -> address(ctx.getSource())))
-                .then(Commands.literal("code")
-                        .executes(ctx -> address(ctx.getSource())))
-                .then(Commands.literal("token")
-                        .requires(source -> Commands.LEVEL_OWNERS.check(source.permissions()))
-                        .then(Commands.argument("token", StringArgumentType.word())
-                                .executes(ctx -> token(ctx.getSource(), StringArgumentType.getString(ctx, "token")))));
+;
     }
 
     private static int start(CommandSourceStack source, int port) {
@@ -65,12 +57,8 @@ public final class VoxelPortServerCommands {
             return 0;
         }
 
+        config.ensureDeviceToken();
         String token = config.getServerToken();
-        if (token == null || token.isBlank()) {
-            source.sendFailure(Component.literal(
-                    "No VoxelPort token set. Run /voxel token <token> first."));
-            return 0;
-        }
 
         ServerRelayService.Config relayConfig = new ServerRelayService.Config(
                 RelayUrlResolver.get(),
@@ -129,49 +117,6 @@ public final class VoxelPortServerCommands {
                         + ", total joins: " + service.getTotalConnections()
                         + ", relay ping: " + pingLabel), false);
         return 1;
-    }
-
-    private static int address(CommandSourceStack source) {
-        ServerRelayService service = VoxelPortMod.getServerRelayService();
-        if (service == null || !service.isRunning()) {
-            source.sendFailure(Component.literal("VoxelPort is not running."));
-            return 0;
-        }
-        source.sendSuccess(() -> Component.literal("VoxelPort address: "
-                + service.getSession().publicAddress()), false);
-        return 1;
-    }
-
-    private static int token(CommandSourceStack source, String token) {
-        VoxelPortConfig config = VoxelPortMod.getConfig();
-        if (config == null) {
-            source.sendFailure(Component.literal("VoxelPort is not initialized yet."));
-            return 0;
-        }
-        
-        // SECURITY FIX: Validate token format before storing
-        // VoxelPort tokens should start with "vp_" and contain alphanumeric/dash/underscore
-        if (!isValidTokenFormat(token)) {
-            source.sendFailure(Component.literal(
-                    "Invalid token format. VoxelPort tokens start with 'vp_' and contain only letters, numbers, dashes, and underscores."));
-            return 0;
-        }
-        
-        config.setServerToken(token);
-        config.save();
-        
-        // SECURITY FIX: Don't echo the token back or show confirmation with it
-        // This prevents token exposure in logs
-        source.sendSuccess(() -> Component.literal(
-                "VoxelPort token saved securely. Run /voxel start to connect. " +
-                "Tip: most server platforms log executed commands to console — set the " +
-                "VOXELPORT_TOKEN environment variable instead next time to avoid that."), false);
-        return 1;
-    }
-    
-    private static boolean isValidTokenFormat(String token) {
-        if (token == null || token.isEmpty()) return false;
-        return token.matches("^vp_[A-Za-z0-9_-]{10,}$");
     }
 
     private static int defaultServerPort(MinecraftServer server) {

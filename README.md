@@ -57,7 +57,7 @@ Players joining your address do not need the mod.
 2. Put the VoxelPort mod JAR in your server's `mods/` folder.
 3. Restart the server.
 4. Run `/voxelport start`.
-5. Share the address shown by `/voxelport address`.
+5. Share the address VoxelPort prints (it is also in `/voxelport status`).
 
 ---
 
@@ -67,13 +67,12 @@ Players joining your address do not need the mod.
 /voxelport start
 /voxelport start <port>
 /voxelport status
-/voxelport address
 /voxelport stop
 ```
 
 `/voxelport start` uses the server's configured Minecraft port automatically. Use `/voxelport start <port>` only when you need to expose a different local port.
 
-The device token is managed for you; `/voxelport token <token>` still exists as an advanced override.
+There is nothing to set up: VoxelPort creates a private device token for you on first launch.
 
 ---
 
@@ -97,11 +96,7 @@ relay_url=wss://relay.voxelport.in
 
 Leave `relay_url` blank (or `wss://relay.voxelport.in`) and `public_host` as `play.voxelport.in` to use the official relays: the mod then picks India or Europe by latency. Setting either to something else turns that off and uses exactly what you configured.
 
-**Setting the token without a chat command:** most server platforms (Spigot/Paper and
-derivatives) log executed console/chat commands by default, so typing
-`/voxel token <token>` can leave the token sitting in `logs/latest.log`. Set the
-`VOXELPORT_TOKEN` environment variable before starting the server instead — it takes
-priority over any saved token and is never written to disk.
+**Using your own token:** set the `VOXELPORT_TOKEN` environment variable before starting the server. It takes priority over the saved token and is never written to disk. Most hosts log typed commands, which is why there is no command for setting a token.
 
 ---
 
@@ -123,7 +118,7 @@ The relay is a bridge, not a game server. Your world, mods, and player data stay
 Make sure your host allows outbound HTTPS/WSS traffic to `relay.voxelport.in` and `eu.voxelport.in` on port `443` (India is also tried directly on `direct.voxelport.in:26499`).
 
 **Players cannot join**
-Run `/voxelport status` or `/voxelport address`, then make sure players are joining the public address shown there.
+Run `/voxelport status`, then make sure players are joining the public address shown there.
 
 **Disconnects with compression or packet errors**
 Update to the latest mod release. Server mode buffers fragmented WebSocket frames and serializes relay writes to prevent packet-stream corruption.

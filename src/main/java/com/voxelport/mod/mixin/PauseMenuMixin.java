@@ -2,7 +2,6 @@ package com.voxelport.mod.mixin;
 
 import com.voxelport.mod.VoxelPortMod;
 import com.voxelport.mod.client.gui.HostStatusScreen;
-import com.voxelport.mod.client.gui.SettingsScreen;
 import com.voxelport.mod.logic.RelayErrorMessages;
 import com.voxelport.mod.logic.RelayUrlResolver;
 import com.voxelport.mod.logic.VoxelPortConfig;
@@ -44,11 +43,7 @@ public abstract class PauseMenuMixin extends Screen {
                             "§8[§aVoxelPort§8] §eRelay is already starting."));
                 }
             } else {
-                VoxelPortConfig config = VoxelPortMod.getConfig();
-                if (config == null || config.getServerToken() == null || config.getServerToken().isBlank()) {
-                    this.minecraft.setScreenAndShow(new SettingsScreen(this));
-                    return;
-                }
+                if (VoxelPortMod.getConfig() == null) return;
                 IntegratedServer server = this.minecraft.getSingleplayerServer();
                 if (server == null) return;
                 int port = server.getPort();
@@ -62,14 +57,9 @@ public abstract class PauseMenuMixin extends Screen {
 
                 startHostingBackground(svc, port, button);
             }
-        }).bounds(this.width / 2 - 102, this.height - 28, 154, 20).build();
+        }).bounds(this.width / 2 - 102, this.height - 28, 204, 20).build();
         hostButton.active = !svc.isStarting();
         this.addRenderableWidget(hostButton);
-
-        this.addRenderableWidget(Button.builder(Component.literal("Settings"), button ->
-                this.minecraft.setScreenAndShow(new SettingsScreen(this)))
-                .bounds(this.width / 2 + 56, this.height - 28, 46, 20)
-                .build());
     }
 
     private void startHostingBackground(ServerRelayService svc, int port, Button button) {
@@ -78,10 +68,8 @@ public abstract class PauseMenuMixin extends Screen {
         new Thread(() -> {
             try {
                 VoxelPortConfig config = VoxelPortMod.getConfig();
+                config.ensureDeviceToken();
                 String token = config.getServerToken();
-                if (token == null || token.isBlank()) {
-                    throw new IllegalStateException("No VoxelPort token set. Open VoxelPort settings or run /voxel token <token> first.");
-                }
 
                 ServerRelayService.Config relayConfig = new ServerRelayService.Config(
                         RelayUrlResolver.get(),
