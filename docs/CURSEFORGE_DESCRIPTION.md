@@ -8,7 +8,7 @@ Paste the description below into the project's description editor (CurseForge's 
 Open your Minecraft world or Fabric server to friends in one click. No port forwarding, no account. Relays in India and Europe.
 ```
 
-**Project settings:** category Utility (and Server Utility if offered); environment Client and Server; license MIT; source https://github.com/VOXELPORT/VoxelPort; issues https://github.com/VOXELPORT/VoxelPort/issues; Discord https://discord.gg/JAUfmey2fP.
+**Project settings:** wiki/guide https://voxelport.in/guides/voxelport-fabric-mod-install-guide; category Utility (and Server Utility if offered); environment Client and Server; license MIT; source https://github.com/VOXELPORT/VoxelPort; issues https://github.com/VOXELPORT/VoxelPort/issues; Discord https://discord.gg/JAUfmey2fP.
 
 ---
 
@@ -98,6 +98,8 @@ Running a **dedicated Fabric server**? Put the jar in `mods/`, start the server 
 Full policy: https://voxelport.in/legal
 
 ---
+
+Full install guide: https://voxelport.in/guides/voxelport-fabric-mod-install-guide
 
 Open source (MIT): https://github.com/VOXELPORT/VoxelPort · Questions or bugs: [GitHub issues](https://github.com/VOXELPORT/VoxelPort/issues) or the [Discord](https://discord.gg/JAUfmey2fP). Not affiliated with Mojang or Microsoft.
 ````

@@ -112,6 +112,10 @@ relay_url=wss://relay.voxelport.in
 With `relay_url` blank (or the default) and `public_host` left as `play.voxelport.in`, the mod picks India or Europe for you. If you set either to something else, such as a self-hosted relay, it uses exactly what you wrote and does no region picking. To use your own token, set the `VOXELPORT_TOKEN` environment variable before starting the server: it overrides the saved token and is never written to disk.
 </details>
 
+## 📖 Full guide
+
+Step-by-step install and troubleshooting: **[voxelport.in/guides/voxelport-fabric-mod-install-guide](https://voxelport.in/guides/voxelport-fabric-mod-install-guide)**
+
 ## 🖥️ Want more than a mod?
 
 The **[VoxelPort app](https://github.com/VOXELPORT/VoxelPort-App)** hosts any Minecraft server (Java and Bedrock, modpacks, friends-only) without a mod. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NGRX9CFNBD6) or [GitHub](https://github.com/VOXELPORT/VoxelPort-App/releases/latest), and the Android app from [voxelport.in](https://voxelport.in).
