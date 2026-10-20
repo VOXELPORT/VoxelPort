@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0] - 2026-10-21
+
+The mod is back, and now runs on every Minecraft 26.x release from one jar.
+
+### Added
+- **Europe relay.** With the official relay, the mod measures India and Europe and uses the closer one (India if neither answers). Players join `play.voxelport.in:<port>` or `play-eu.voxelport.in:<port>`; the shown address matches the region used. A custom relay URL or public host is never changed.
+- **Relay announcements.** A notice from the relay's operator (for example a planned restart) is logged and shown on the Live status screen.
+- **Client name.** The mod tells the relay its name and version (`mod/1.5.0`) so support questions can be answered from the relay's log.
+
+### Changed
+- **Works on Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3** with one jar. The player-list header moved between 26.1 and 26.2; the mod now handles both.
+- The "discontinued" notice is removed.
+
 ## [1.4.8] - 2026-10-08
 
 ### Changed

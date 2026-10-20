@@ -67,6 +67,7 @@ public final class ServerRelayService {
     private volatile WebSocket socket;
     private volatile Session session;
     private volatile Config config;
+    private volatile String relayNotice = "";
     private volatile ScheduledFuture<?> pingTask;
     private volatile long lastPingSentNanos;
 
@@ -97,11 +98,25 @@ public final class ServerRelayService {
             // so clearing here (rather than after .get()) avoids a race that could drop
             // the register — which would leave the relay silent and time us out below.
             sendQueue.clear();
+            relayNotice = "";
 
             // The default relay is tried directly first (bypassing Cloudflare's
             // sometimes far-away edge), falling back to the default URL if the
             // direct port is unreachable from this network.
-            java.util.List<String> candidates = com.voxelport.mod.logic.RelayUrlResolver.candidates(cfg.relayWs());
+            // With the official relay and the default public host, the closest region (India or Europe) is
+            // chosen; a custom relay or host is left exactly as configured.
+            java.util.List<String> candidates;
+            String publicHost = cfg.publicHost();
+            boolean official = com.voxelport.mod.logic.RelayUrlResolver.DEFAULT_RELAY_URL.equalsIgnoreCase(String.valueOf(cfg.relayWs()).trim())
+                    && "play.voxelport.in".equalsIgnoreCase(String.valueOf(publicHost).trim());
+            if (official) {
+                com.voxelport.mod.logic.Regions.Region region = com.voxelport.mod.logic.Regions.pick("auto", com.voxelport.mod.logic.Regions::measure);
+                candidates = region.relayUrls();
+                publicHost = region.publicHost();
+                logger.info("VoxelPort: using the {} relay", region.label());
+            } else {
+                candidates = com.voxelport.mod.logic.RelayUrlResolver.candidates(cfg.relayWs());
+            }
             WebSocket ws = null;
             for (int attempt = 0; attempt < candidates.size(); attempt++) {
                 String candidateUrl = candidates.get(attempt);
@@ -125,6 +140,8 @@ public final class ServerRelayService {
                                     JsonObject register = new JsonObject();
                                     register.addProperty("type", "register");
                                     register.addProperty("token", cfg.token());
+                                    // Names this mod and its version in the relay's log, for support questions.
+                                    register.addProperty("client", "mod/" + com.voxelport.mod.VoxelPortMod.VERSION);
                                     if (cfg.blockedIps() != null && !cfg.blockedIps().isEmpty()) {
                                         com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
                                         for (String ip : cfg.blockedIps()) arr.add(ip.trim());
@@ -211,7 +228,7 @@ public final class ServerRelayService {
                 throw new IOException("Relay did not assign a valid public port.");
             }
 
-            this.session = new Session(cfg.serverPort(), port, cfg.publicHost() + ":" + port, Instant.now());
+            this.session = new Session(cfg.serverPort(), port, publicHost + ":" + port, Instant.now());
             this.relayPingMs.set(-1);
             this.lastPingSentNanos = 0L;
 
@@ -250,6 +267,11 @@ public final class ServerRelayService {
         if (ws != null) {
             try { ws.abort(); } catch (Exception ignored) {}
         }
+    }
+
+    /** What the relay's operator last announced, or "" when there is nothing (shown on the status screen). */
+    public String relayNotice() {
+        return relayNotice;
     }
 
     public boolean isRunning() {
@@ -316,6 +338,14 @@ public final class ServerRelayService {
                 case "close" -> {
                     String conn = optString(msg, "conn");
                     if (conn != null) closePlayerConnection(conn, true);
+                }
+                case "notice" -> {
+                    // An announcement from the relay's operator ("the relay will restart"); empty withdraws it.
+                    String text = optString(msg, "message");
+                    String clean = text == null ? "" : text.replaceAll("[\\p{Cntrl}§]", "").trim();
+                    if (clean.length() > 300) clean = clean.substring(0, 300);
+                    relayNotice = clean;
+                    if (!clean.isEmpty()) logger.info("VoxelPort relay announcement: {}", clean);
                 }
                 case "pong" -> {
                     long sent = lastPingSentNanos;

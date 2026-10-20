@@ -1,9 +1,3 @@
-> [!WARNING]
-> **This mod is discontinued.** VoxelPort is now a desktop app only — it hosts any Minecraft Java server (including Fabric servers and modpacks), installs the right Java for you, and uses the same relay.
-> **[Get the VoxelPort app →](https://github.com/VOXELPORT/VoxelPort-App/releases/latest)** · [voxelport.in](https://voxelport.in)
->
-> Existing mod releases keep working against the relay, but they will not receive updates. This repository is archived (read-only).
-
 <div align="center">
 
 <img src="https://pr.opop.eu.org/Frame_2.png" width="100" alt="VoxelPort" />
@@ -37,7 +31,7 @@ Players do not need to install the mod.
 
 | Requirement | Version |
 |---|---|
-| Minecraft | 26.x |
+| Minecraft | 26.1, 26.1.1, 26.1.2, 26.2, 26.3 (one jar for all of 26.x) |
 | Fabric Loader | 0.18.6+ |
 | Java | 25+ |
 
@@ -53,7 +47,7 @@ A device token is generated automatically on first launch — nothing to request
 2. Open Minecraft and load your singleplayer world.
 3. Use Minecraft's **Open to LAN** button.
 4. Press **Open to VoxelPort** from the pause menu.
-5. Share the copied `play.voxelport.in:<assigned-port>` address.
+5. Share the copied address: `play.voxelport.in:<port>` (India) or `play-eu.voxelport.in:<port>` (Europe). The closest relay is chosen for you.
 
 Players joining your address do not need the mod.
 
@@ -101,7 +95,7 @@ max_connections=200
 relay_url=wss://relay.voxelport.in
 ```
 
-Leave `relay_url` blank (or `wss://relay.voxelport.in`) unless you are testing with VoxelPort support.
+Leave `relay_url` blank (or `wss://relay.voxelport.in`) and `public_host` as `play.voxelport.in` to use the official relays: the mod then picks India or Europe by latency. Setting either to something else turns that off and uses exactly what you configured.
 
 **Setting the token without a chat command:** most server platforms (Spigot/Paper and
 derivatives) log executed console/chat commands by default, so typing
@@ -116,7 +110,7 @@ priority over any saved token and is never written to disk.
 1. The mod opens an outbound WebSocket to the relay.
 2. It registers using its auto-generated device token.
 3. The relay assigns a public TCP port.
-4. Players join `play.voxelport.in:<assigned-port>` from vanilla Minecraft.
+4. Players join `play.voxelport.in:<assigned-port>` (India) or `play-eu.voxelport.in:<assigned-port>` (Europe) from vanilla Minecraft.
 5. Minecraft traffic is bridged through the relay to your Fabric server.
 
 The relay is a bridge, not a game server. Your world, mods, and player data stay on your own server.
@@ -126,7 +120,7 @@ The relay is a bridge, not a game server. Your world, mods, and player data stay
 ## Troubleshooting
 
 **Status shows disconnected**
-Make sure your host allows outbound HTTPS/WSS traffic to `relay.voxelport.in` on port `443`.
+Make sure your host allows outbound HTTPS/WSS traffic to `relay.voxelport.in` and `eu.voxelport.in` on port `443` (India is also tried directly on `direct.voxelport.in:26499`).
 
 **Players cannot join**
 Run `/voxelport status` or `/voxelport address`, then make sure players are joining the public address shown there.

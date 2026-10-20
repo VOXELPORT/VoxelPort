@@ -54,6 +54,13 @@ public class HostStatusScreen extends Screen {
         gui.text(this.font, playersText,
                 this.width / 2 - this.font.width(playersText) / 2, 73, 0xFFA0A0A0, true);
 
+        String notice = VoxelPortMod.getServerRelayService().relayNotice();
+        if (notice != null && !notice.isEmpty()) {
+            String noticeText = "Relay announcement: §e" + notice;
+            gui.text(this.font, noticeText,
+                    this.width / 2 - this.font.width(noticeText) / 2, 97, 0xFFFFFFFF, true);
+        }
+
         String addressLabel = "Share this address with your friends:";
         gui.text(this.font, addressLabel,
                 this.width / 2 - this.font.width(addressLabel) / 2, 180, 0xFFA0A0A0, true);
