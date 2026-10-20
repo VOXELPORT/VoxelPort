@@ -138,4 +138,4 @@ Update to the latest mod release. Server mode buffers fragmented WebSocket frame
 
 MIT. See the included license file.
 
-VoxelPort is not affiliated with Mojang, Microsoft, Fabric, CurseForge, or Modrinth.
+VoxelPort is not affiliated with Mojang, Microsoft, or Fabric.
