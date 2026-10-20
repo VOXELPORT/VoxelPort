@@ -1,6 +1,6 @@
 # Text for the CurseForge project page
 
-Paste the description below into the project's description editor (CurseForge's upload API cannot edit it). The images load from this repo's `docs/` folder once it is pushed to GitHub; until then, upload `banner.png` and `how-it-works.png` to the CurseForge gallery instead.
+Paste the description below into the project's description editor (CurseForge's upload API cannot edit it). The two images load from this repo, pinned to a commit so the links never change.
 
 **Summary (one line):**
 
@@ -15,7 +15,7 @@ Open your Minecraft world or Fabric server to friends in one click. No port forw
 **Description:**
 
 ````markdown
-![VoxelPort Fabric Mod](https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/banner.png)
+![VoxelPort Fabric Mod](https://raw.githubusercontent.com/VOXELPORT/VoxelPort/bb69e41919462d70b2e1d2ece6a3cfed4e31b6c0/docs/banner.png)
 
 # Open to VoxelPort
 
@@ -34,7 +34,7 @@ Open your Minecraft world or Fabric server to friends in one click. No port forw
 
 Running a **dedicated Fabric server**? Put the jar in `mods/`, start the server and run `/voxelport start`.
 
-![How VoxelPort works](https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/how-it-works.png)
+![How VoxelPort works](https://raw.githubusercontent.com/VOXELPORT/VoxelPort/bb69e41919462d70b2e1d2ece6a3cfed4e31b6c0/docs/how-it-works.png)
 
 ---
 
