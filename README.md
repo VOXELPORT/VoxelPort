@@ -1,68 +1,61 @@
-<div align="center">
-
-<img src="https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/banner.svg" alt="VoxelPort Fabric Mod: open your Minecraft world to friends in one click" width="100%" />
-
-# VoxelPort Fabric Mod
-
-**Open your Minecraft world or Fabric server to friends in one click. No port forwarding, no account.**
-
-[![Download](https://img.shields.io/github/v/release/VOXELPORT/VoxelPort?style=flat-square&label=Download&color=00FFB2)](https://github.com/VOXELPORT/VoxelPort/releases/latest)
-[![Website](https://img.shields.io/badge/Website-voxelport.in-00FFB2?style=flat-square)](https://voxelport.in)
-[![Status](https://img.shields.io/badge/Relay-Status-00FFB2?style=flat-square)](https://voxelport.in/status)
-[![License: MIT](https://img.shields.io/badge/License-MIT-00FFB2?style=flat-square)](LICENSE)
-
-</div>
-
----
-
-## What it does
-
-VoxelPort connects a Fabric server, or a singleplayer world opened to LAN, to a VoxelPort relay. Your game opens an outbound encrypted connection, the relay hands you a public address, and your friends join it from plain Minecraft. **Players do not need the mod.**
-
-Because nothing has to come *in* to your router, it works where port forwarding doesn't: CGNAT, mobile data, hostel and campus Wi-Fi, and many ISPs.
-
 <p align="center">
-  <img src="https://raw.githubusercontent.com/VOXELPORT/VoxelPort/main/docs/how-it-works.svg" alt="How VoxelPort connects a host to players through the relay" width="900" />
+  <img src="docs/banner.svg" alt="VoxelPort Fabric Mod: open your Minecraft world to friends in one click" width="100%" />
 </p>
 
-**Two relay regions.** India (`play.voxelport.in`) and Europe (`play-eu.voxelport.in`). The mod measures both and uses the closer one, so you don't choose anything.
+<p align="center">
+  <a href="https://github.com/VOXELPORT/VoxelPort/releases/latest"><img src="https://img.shields.io/github/v/release/VOXELPORT/VoxelPort?style=for-the-badge&label=Latest&color=5FAE3B&labelColor=15120F" alt="Latest release" /></a>
+  <a href="https://github.com/VOXELPORT/VoxelPort/releases"><img src="https://img.shields.io/badge/Price-Free-F6CB2F?style=for-the-badge&labelColor=15120F" alt="Free" /></a>
+  <a href="https://voxelport.in/status"><img src="https://img.shields.io/badge/Relay-Status-43C8D8?style=for-the-badge&labelColor=15120F" alt="Relay status" /></a>
+  <a href="https://discord.gg/JAUfmey2fP"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=15120F" alt="Join the Discord" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-C8262B?style=for-the-badge&labelColor=15120F" alt="MIT license" /></a>
+</p>
+
+<h3 align="center">
+  Open your Minecraft world or Fabric server to friends. They join with plain Minecraft.<br />
+  No port forwarding · no signup · a friendly <a href="https://discord.gg/JAUfmey2fP">Discord</a> if you want help.
+</h3>
+
+<p align="center">
+  <a href="https://github.com/VOXELPORT/VoxelPort/releases/latest"><img src="https://img.shields.io/badge/Download-Fabric%20mod-F6CB2F?style=for-the-badge&logo=github&logoColor=black&labelColor=15120F" alt="Download the Fabric mod" height="40" /></a>
+</p>
+
+<p align="center"><sub>Minecraft 26.1 – 26.3 · Fabric Loader 0.18.6+ · Java 25+ · <a href="https://voxelport.in">voxelport.in</a></sub></p>
 
 ---
 
-## Requirements
+## ⚡ Zero to online in four steps
 
 | | |
-|---|---|
-| Minecraft | 26.1, 26.1.1, 26.1.2, 26.2 or 26.3 (the same jar works on all of them) |
-| Fabric Loader | 0.18.6 or newer |
-| Java | 25 or newer |
+|:-:|---|
+| **1** | **Download** the latest `VoxelPort-<version>.jar` from the [Releases page](https://github.com/VOXELPORT/VoxelPort/releases/latest) and drop it in your Fabric `mods` folder. |
+| **2** | **Open** your world and use Minecraft's **Open to LAN**. |
+| **3** | Press **Esc**, then **Open to VoxelPort**. The address is copied, for example `play.voxelport.in:26137` (India) or `play-eu.voxelport.in:26137` (Europe). |
+| **4** | Friends paste it into **Multiplayer → Add Server**. Done. |
 
-Only the **host** installs the mod. There is no sign-up and no token to copy: a private device token is created for you on first use.
+Running a **dedicated Fabric server** instead? Put the jar in `mods/`, start the server and run `/voxelport start`.
 
----
+## 🗺️ How it works
 
-## Quick start
+<p align="center">
+  <img src="docs/how-it-works.svg" alt="How VoxelPort connects a host to players through the relay" width="900" />
+</p>
 
-### Singleplayer world
+## ✨ What you get
 
-1. Download the latest `VoxelPort-<version>.jar` from the [Releases page](https://github.com/VOXELPORT/VoxelPort/releases/latest) and put it in your Fabric client's `mods` folder.
-2. Start Minecraft, open your world, and use **Open to LAN**.
-3. Press **Escape**, then **Open to VoxelPort**.
-4. The address is copied to your clipboard. Send it to your friends.
+- 🌍 **No port forwarding**: the mod dials out to a relay, so your router and home IP stay private.
+- 🎮 **Vanilla clients**: your friends need nothing but Minecraft. Only the host installs the mod.
+- 🇮🇳🇪🇺 **Two relay regions**: India (`play.voxelport.in`) and Europe (`play-eu.voxelport.in`). The mod measures both and picks the closer one for lower ping.
+- 🖱️ **One click**: **Open to VoxelPort** in the pause menu starts sharing, copies the address and turns into **VoxelPort: Live**.
+- 📺 **Live screen**: address, uptime and connected players, with the relay ping in the player-list header (Tab).
+- 🖥️ **Dedicated servers too**: `/voxelport start`, `status` and `stop`. No config needed.
+- 📣 **Relay announcements**: if the relay is about to restart, you see it on the Live screen and in the log.
+- 🔒 **No account**: a private device token is created on first use. Nothing to sign up for, copy or paste.
+- 🧩 **One jar for every 26.x**: the same file runs on Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
+- 💚 **Free & open source**: MIT-licensed, like the [relay](https://github.com/VOXELPORT/relay).
 
-The pause-menu button changes to **VoxelPort: Live**. Click it to see the address, uptime and connected players. The relay ping shows in the player-list header (Tab).
+## 🧰 Commands
 
-### Dedicated server
-
-1. Install Fabric Loader on your server and put the mod jar in `mods/`.
-2. Start the server and run `/voxelport start`.
-3. Share the address it prints.
-
----
-
-## Commands
-
-`/voxelport` can also be typed as `/voxel` or `/vp`. They need game-master permissions (operator level 2).
+`/voxelport` also works as `/voxel` and `/vp`. They need game-master permissions (operator level 2).
 
 | Command | What it does |
 |---|---|
@@ -71,11 +64,42 @@ The pause-menu button changes to **VoxelPort: Live**. Click it to see the addres
 | `/voxelport status` | Show the address, uptime, players and relay ping |
 | `/voxelport stop` | Stop sharing |
 
----
+## ❓ FAQ
 
-## Configuration
+<details>
+<summary><b>Do my friends need the mod?</b></summary>
 
-Most people never need this. Settings live in `config/voxelport/settings.properties`:
+No. They join with normal Minecraft: Java Edition using the address VoxelPort gives you.
+</details>
+
+<details>
+<summary><b>Which Minecraft versions work?</b></summary>
+
+26.1, 26.1.1, 26.1.2, 26.2 and 26.3 with Fabric Loader 0.18.6 or newer, on Java 25 or newer. When a new Minecraft version moves something the mod hooks into, the mod needs an update, so grab the newest release.
+</details>
+
+<details>
+<summary><b>Does my game have to stay open?</b></summary>
+
+Yes. The address works while your world or server is running. VoxelPort is not a 24/7 host, and the relays are run by one student with no uptime guarantee, so check the [status page](https://voxelport.in/status) if something looks wrong. For a server that never sleeps, use a paid host.
+</details>
+
+<details>
+<summary><b>Where is my world stored?</b></summary>
+
+On your computer. The relay only passes traffic along: it is a bridge, not a game server, and it never stores your world or player data.
+</details>
+
+<details>
+<summary><b>It doesn't connect. What should I check?</b></summary>
+
+Allow outbound HTTPS/WSS to `relay.voxelport.in` and `eu.voxelport.in` on port 443 (India is also tried directly on `direct.voxelport.in:26499`). Make sure your world or server is still running, and that friends use the exact address on the Live screen or in `/voxelport status`.
+</details>
+
+<details>
+<summary><b>Can I use my own relay or token?</b></summary>
+
+Yes, but most people never need to. Settings live in `config/voxelport/settings.properties`:
 
 ```properties
 server_token=vp_...        # created for you; keep it private
@@ -85,52 +109,24 @@ max_connections=200
 relay_url=wss://relay.voxelport.in
 ```
 
-With `relay_url` blank (or the default) and `public_host` left as `play.voxelport.in`, the mod picks India or Europe for you. If you set either to something else, for example a self-hosted relay, the mod uses exactly what you wrote and does no region picking.
+With `relay_url` blank (or the default) and `public_host` left as `play.voxelport.in`, the mod picks India or Europe for you. If you set either to something else, such as a self-hosted relay, it uses exactly what you wrote and does no region picking. To use your own token, set the `VOXELPORT_TOKEN` environment variable before starting the server: it overrides the saved token and is never written to disk.
+</details>
 
-**Your own token:** set the `VOXELPORT_TOKEN` environment variable before starting the server. It overrides the saved token and is never written to disk. There is deliberately no command for this, because most hosts log typed commands.
+## 🖥️ Want more than a mod?
 
----
+The **[VoxelPort app](https://github.com/VOXELPORT/VoxelPort-App)** hosts any Minecraft server (Java and Bedrock, modpacks, friends-only) without a mod. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NGRX9CFNBD6) or [GitHub](https://github.com/VOXELPORT/VoxelPort-App/releases/latest), and the Android app from [voxelport.in](https://voxelport.in).
 
-## How it works
+## 🛠️ For developers
 
-1. The mod opens an outbound WebSocket to the nearest relay.
-2. It registers with its device token and the relay assigns a public TCP port.
-3. Players join `play.voxelport.in:<port>` or `play-eu.voxelport.in:<port>` from vanilla Minecraft.
-4. The relay passes the traffic to your server. It is a bridge, not a game server: your world and player data stay with you.
+```bash
+./gradlew build    # builds build/libs/VoxelPort-<version>.jar and runs the tests
+./gradlew test     # unit tests only
+```
 
-If the relay's operator announces something (for example a planned restart), it appears on the Live screen and in the server log.
-
----
-
-## Good to know
-
-- **Your game has to stay open.** The address works while your world or server is running. For a server that never sleeps, use a paid host.
-- **No uptime guarantee.** The relays are run by one student. Check the [status page](https://voxelport.in/status) if something looks wrong.
-- **Not affiliated with Mojang or Microsoft.**
+Needs Java 25. To try another Minecraft version, pass it on the command line: `./gradlew build -Pminecraft_version=26.3`. Releases are built by GitHub Actions when a `v*` tag is pushed.
 
 ---
 
-## Troubleshooting
-
-**"Open to VoxelPort" doesn't connect**
-Allow outbound HTTPS/WSS to `relay.voxelport.in` and `eu.voxelport.in` on port 443. India is also tried directly on `direct.voxelport.in:26499`.
-
-**Friends can't join**
-Check that they use the exact address shown on the Live screen (or `/voxelport status`) and that your world or server is still running.
-
-**The game crashes on start after a Minecraft update**
-Use the newest mod release. Each Minecraft version can move things the mod hooks into, so a new version may need an update.
-
----
-
-## More from VoxelPort
-
-- [Website](https://voxelport.in) and [relay status](https://voxelport.in/status)
-- **VoxelPort app:** hosts any Minecraft server (Java and Bedrock, modpacks, friends-only) without a mod. Windows, via the [Microsoft Store](https://apps.microsoft.com/detail/9NGRX9CFNBD6) or [GitHub](https://github.com/VOXELPORT/VoxelPort-App/releases/latest), and Android from the website.
-- [Discord](https://discord.gg/JAUfmey2fP)
-
----
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+<p align="center">
+  <sub>Not affiliated with Mojang or Microsoft. Minecraft is a trademark of Mojang AB.<br />Made by <a href="https://github.com/trazhub">trazhub</a> · <a href="https://voxelport.in">voxelport.in</a></sub>
+</p>
