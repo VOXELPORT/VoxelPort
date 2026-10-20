@@ -11,7 +11,7 @@ The mod is back, and now runs on every Minecraft 26.x release from one jar.
 
 ### Changed
 - **Works on Minecraft 26.1, 26.1.1, 26.1.2, 26.2 and 26.3** with one jar. The player-list header moved between 26.1 and 26.2; the mod now handles both.
-- The "discontinued" notice is removed. Releases are on GitHub and Modrinth (CurseForge is not used).
+- The "discontinued" notice is removed. Releases are on GitHub, Modrinth and CurseForge.
 
 ### Removed
 - **Nothing to set up any more.** The Settings screen (relay URL and token boxes), the "VoxelPort Settings" button on the multiplayer screen and the `/voxel token`, `/voxel address` and `/voxel code` commands are gone. The device token is created and used automatically; `/voxel status` shows the address, and a self-hoster can still set `relay_url` and `public_host` in `config/voxelport/settings.properties`, or the `VOXELPORT_TOKEN` environment variable.
