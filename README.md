@@ -1,3 +1,6 @@
+> ## ⚠️ This mod is discontinued
+> VoxelPort no longer develops, supports or updates the Fabric mod. Please use the **[VoxelPort app](https://github.com/VOXELPORT/VoxelPort-App)** (Windows, Linux and Android) instead: it works with any server, including Fabric and modpacks, and it is where all new work goes. The last release (1.5.0) is still downloadable, but it gets no fixes. The source stays here under the MIT license.
+
 <p align="center">
   <img src="docs/banner.svg" alt="VoxelPort Fabric Mod: open your Minecraft world to friends in one click" width="100%" />
 </p>
