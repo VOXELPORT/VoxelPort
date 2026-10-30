@@ -118,7 +118,7 @@ Step-by-step install and troubleshooting: **[voxelport.in/guides/voxelport-fabri
 
 ## 🖥️ Want more than a mod?
 
-The **[VoxelPort app](https://github.com/VOXELPORT/VoxelPort-App)** hosts any Minecraft server (Java and Bedrock, modpacks, friends-only) without a mod. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NGRX9CFNBD6) or [GitHub](https://github.com/VOXELPORT/VoxelPort-App/releases/latest), and the Android app from [voxelport.in](https://voxelport.in).
+The **[VoxelPort app](https://github.com/VOXELPORT/VoxelPort-App)** hosts any Minecraft server (Java and Bedrock, modpacks, friends-only) without a mod. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NGRX9CFNBD6) or [GitHub](https://github.com/VOXELPORT/VoxelPort-App/releases/latest), and the Android app from [voxelport.in](https://voxelport.in). The apps ask hosts to sign in with Discord once; this mod needs no account.
 
 ## 🛠️ For developers
 
